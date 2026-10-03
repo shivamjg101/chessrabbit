@@ -34,7 +34,7 @@ jobs:
       - name: Lint
         run: ruff check apps/api services/engine pipeline
       - name: Apply migrations
-        # Every migration, in filename order — the same order initdb applies
+        # Every migration, in filename order - the same order initdb applies
         # them to a fresh docker volume. Only 001 used to run here, so 002
         # onward reached production having never been executed anywhere except
         # a developer's own database. ON_ERROR_STOP makes psql exit non-zero;
@@ -42,7 +42,7 @@ jobs:
         run: |
           sudo apt-get install -y postgresql-client
           for f in db/migrations/*.sql; do
-            echo "── $f"
+            echo "-- $f"
             PGPASSWORD=devpassword psql -v ON_ERROR_STOP=1 --quiet \
               -h 127.0.0.1 -U chessrabbit -d chessrabbit -f "$f"
           done
@@ -117,12 +117,13 @@ jobs:
       - name: Install
         working-directory: apps/web
         run: npm ci --no-audit --no-fund
-      - name: Typecheck + test + build
+      - name: Typecheck + lint + test + build
         working-directory: apps/web
         run: |
-          npx tsc --noEmit
+          npm run typecheck
+          npm run lint
           npm test
-          npx next build
+          npm run build
 
   local-install:
     runs-on: ubuntu-latest
