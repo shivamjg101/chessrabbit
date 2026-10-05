@@ -16,6 +16,7 @@ import { bestSanAt, explainMove, formatCp, liveVerdicts, sanLine } from "@/lib/l
 import { endOfLine, lineTo, nodeAt } from "@/lib/moveTree";
 import { Shape } from "@/lib/shapes";
 import { BOARD_FRAME, useBoardTheme } from "@/lib/boardTheme";
+import { settleExplorerRequest } from "@/lib/explorerRequest";
 import { updateSettings, useSettings } from "@/lib/settings";
 import ReviewPanel from "@/components/ReviewPanel";
 import VerdictPlate from "@/components/VerdictPlate";
@@ -198,6 +199,7 @@ export default function AnalysisBoard({
   const [explorerTotal, setExplorerTotal] = useState(0);
   const [explorerScope, setExplorerScope] = useState<ExplorerScope>("reference");
   const [explorerError, setExplorerError] = useState<string | null>(null);
+  const [explorerLoading, setExplorerLoading] = useState(false);
   const [explorerRefresh, setExplorerRefresh] = useState(0);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
@@ -552,10 +554,12 @@ export default function AnalysisBoard({
       setExplorer(hit.moves);
       setExplorerTotal(hit.total);
       setExplorerError(null);
+      setExplorerLoading(false);
     } else {
       setExplorer([]);
       setExplorerTotal(0);
       setExplorerError(null);
+      setExplorerLoading(true);
     }
 
     const timer = setTimeout(() => {
@@ -570,24 +574,38 @@ export default function AnalysisBoard({
       const ctrl = new AbortController();
       explorerAbort.current = ctrl;
 
-      api
-        .explorer(fen, explorerScope, ctrl.signal)
-        .then((res) => {
-          if (ctrl.signal.aborted) return;
-          if (explorerCache.current.size >= EXPLORER_CACHE_MAX) {
-            explorerCache.current.clear();
-          }
-          explorerCache.current.set(key, { moves: res.moves, total: res.total_games });
-          setExplorer(res.moves);
-          setExplorerTotal(res.total_games);
-          setExplorerError(null);
-        })
-        .catch((err) => {
-          if (ctrl.signal.aborted) return; // superseded, not a failure
+      settleExplorerRequest(
+        api.explorer(fen, explorerScope, ctrl.signal),
+        ctrl.signal
+      ).then((outcome) => {
+        if (outcome.status === "aborted") return;
+
+        setExplorerLoading(false);
+
+        if (outcome.status === "error") {
+          const err = outcome.error;
           setExplorer([]);
           setExplorerTotal(0);
-          setExplorerError(err instanceof ApiError ? err.message : "Could not load explorer statistics. Please retry.");
+          setExplorerError(
+            err instanceof ApiError
+              ? err.message
+              : "Could not load explorer statistics. Please retry."
+          );
+          return;
+        }
+
+        const res = outcome.result;
+        if (explorerCache.current.size >= EXPLORER_CACHE_MAX) {
+          explorerCache.current.clear();
+        }
+        explorerCache.current.set(key, {
+          moves: res.moves,
+          total: res.total_games,
         });
+        setExplorer(res.moves);
+        setExplorerTotal(res.total_games);
+        setExplorerError(null);
+      });
     }, SETTLE_MS);
 
     return () => { clearTimeout(timer); explorerAbort.current?.abort(); };
@@ -1045,6 +1063,7 @@ export default function AnalysisBoard({
               scope={explorerScope}
               onScope={setExplorerScope}
               error={explorerError}
+              loading={explorerLoading}
               onRetry={() => { explorerCache.current.clear(); setExplorerRefresh((value) => value + 1); }}
               onPlay={(uci) => onDrop(uci.slice(0, 2), uci.slice(2, 4))}
               fen={fen}

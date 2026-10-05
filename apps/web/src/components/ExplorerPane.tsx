@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { setLichessExplorerToken } from "@/lib/api";
 import type { ExplorerMove, ExplorerScope } from "@/lib/api";
+import { explorerView } from "@/lib/explorerView";
 
 const SCOPES: { id: ExplorerScope; label: string; title?: string }[] = [
   { id: "reference", label: "Masters" },
@@ -17,18 +18,11 @@ interface Props {
   scope: ExplorerScope;
   onScope: (s: ExplorerScope) => void;
   error: string | null;
+  loading: boolean;
   onRetry: () => void;
   onPlay: (uci: string) => void;
   /** The position on the board, so it can be looked up in the database. */
   fen: string;
-}
-
-function emptyText(scope: ExplorerScope, error: string | null): string {
-  if (error) return error;
-  if (scope === "mine") return "None of your games reached this position yet.";
-  if (scope === "lichess_live")
-    return "No master games have reached this position on Lichess.";
-  return "No reference games for this position.";
 }
 
 /** Opening book: what strong players actually play from here, and how it goes. */
@@ -38,13 +32,16 @@ export default function ExplorerPane({
   scope,
   onScope,
   error,
+  loading,
   onRetry,
   onPlay,
   fen,
 }: Props) {
   const [token, setToken] = useState("");
+  const view = explorerView(loading, error, moves.length, total, scope);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" aria-busy={loading}>
       <div className="flex flex-wrap items-center gap-2">
         <div className="seg">
           {SCOPES.map((s) => (
@@ -59,7 +56,7 @@ export default function ExplorerPane({
           ))}
         </div>
         <span className="ml-auto font-mono text-[11px] text-muted">
-          {error ? "—" : total.toLocaleString()} games
+          {view.summary}
         </span>
       </div>
 
@@ -84,8 +81,16 @@ export default function ExplorerPane({
         </details>
       )}
 
-      {moves.length === 0 ? (
-        <p className="px-1 py-2 text-xs text-muted">{emptyText(scope, error)}</p>
+      {view.status === "loading" ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="px-1 py-2 text-xs text-muted"
+        >
+          {view.message}
+        </p>
+      ) : view.status !== "results" ? (
+        <p className="px-1 py-2 text-xs text-muted">{view.message}</p>
       ) : (
         <ul className="space-y-0.5">
           {moves.slice(0, 10).map((m) => (
