@@ -25,6 +25,8 @@ Opponent prep works without a local master database. It uses local master replie
 
 ## Engines
 
+For step-by-step Leela instructions, see [install Leela Chess Zero](../README.md#install-leela-chess-zero) and [analyse with Leela Chess Zero](../README.md#analyse-with-leela-chess-zero) in the README, or the [website installation guide](https://shivamjg101.github.io/chessrabbit/install-leela-chess-zero/).
+
 - **Stockfish:** included and selected by default.
 - **Leela Chess Zero:** download a Windows Lc0 package appropriate for your hardware and a compatible network from [the official downloads](https://lczero.org/play/download/). Extract it into a permanent folder. In ChessRabbit, choose **Engines → Add Leela Chess Zero**, select `lc0.exe`, then select the network `.pb.gz` or `.pb`. GPU builds require their matching drivers/runtime libraries; CPU builds also work. The native menu reports startup errors before accepting the engine.
 - **Another UCI engine:** choose **Engines → Add UCI engine** and select its executable. Keep its required files together in a permanent folder.
