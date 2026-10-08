@@ -15,6 +15,12 @@ const escape = text => text.replaceAll('&', '&amp;').replaceAll('"', '&quot;').r
 await mkdir(join(output, 'assets'), { recursive: true });
 const home = (await readFile(join(source, 'index.html'), 'utf8')).replaceAll(defaultURL, base);
 await writeFile(join(output, 'index.html'), home);
+// Reuse the visible product's schema so the downloadable facts cannot drift.
+const product = JSON.parse(home.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+await writeFile(join(output, 'product.json'), JSON.stringify(product, null, 2) + '\n');
+const indexNowKey = (await readFile(join(source, 'indexnow-key.txt'), 'utf8')).trim();
+if (!/^[a-f0-9]{32}$/.test(indexNowKey)) throw new Error('Invalid IndexNow verification key');
+await writeFile(join(output, `${indexNowKey}.txt`), indexNowKey);
 for (const file of ['styles.css', 'site.js', '.nojekyll', 'assets/favicon.svg', 'assets/social.png']) {
   await copyFile(join(source, file), join(output, file));
 }
@@ -46,11 +52,12 @@ for (const [index, fen] of positions.entries()) {
 const header = home.match(/<header[\s\S]*?<\/header>/)[0]
   .replace('href="./"', 'href="../"').replaceAll('src="assets/', 'src="../assets/').replaceAll('href="#', 'href="../#');
 const footer = home.match(/<footer[\s\S]*?<\/footer>/)[0]
-  .replace('href="./"', 'href="../"').replaceAll('src="assets/', 'src="../assets/');
+  .replaceAll('href="./', 'href="../').replaceAll('src="assets/', 'src="../assets/');
 for (const guide of guides) {
   const url = `${base}${guide.slug}/`;
   const schema = JSON.stringify({ '@context': 'https://schema.org', '@type': 'Article', headline: guide.heading,
     description: guide.description, mainEntityOfPage: url, image: `${base}assets/social.png`,
+    about: { '@id': product['@id'] }, dateModified: guide.modified,
     author: { '@type': 'Person', name: 'shivamjg101', url: 'https://github.com/shivamjg101' },
     publisher: { '@type': 'Organization', name: 'ChessRabbit', url: base } }).replaceAll('<', '\\u003c');
   const html = `<!doctype html>

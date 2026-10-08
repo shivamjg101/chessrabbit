@@ -4,6 +4,8 @@ Free desktop chess analysis and training for Windows. ChessRabbit runs on your c
 
 [Visit the ChessRabbit website](https://shivamjg101.github.io/chessrabbit/) for an introduction, downloads, and guides to Stockfish, offline analysis, and PGN game review.
 
+See [product facts and compatibility](https://shivamjg101.github.io/chessrabbit/about/) for supported platforms, requirements, use cases, and release limitations. [Machine-readable product data](https://shivamjg101.github.io/chessrabbit/product.json) is also available. The Windows 0.1.2 download is currently marked as a prerelease.
+
 ![ChessRabbit preview](docs/assets/chessrabbit-social-preview.svg)
 
 [Download ChessRabbit-Setup.exe](https://github.com/shivamjg101/chessrabbit/releases/download/desktop-v0.1.2/ChessRabbit-Setup.exe) · [Read the desktop guide](docs/DESKTOP.md) · [Support the project](https://buymeacoffee.com/shivamjg101)
