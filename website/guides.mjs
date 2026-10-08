@@ -7,7 +7,7 @@ export const guides = [
     category: 'PRODUCT FACTS',
     modified: '2026-10-08',
     intro: 'ChessRabbit is a free, open-source desktop chess analysis and training app for Windows 10 and 11 on 64-bit Intel or AMD PCs. It includes Stockfish 19, keeps your game database locally, and supports offline analysis of local PGN files.',
-    body: `<p>These facts were checked on <time datetime="2026-10-08">8 October 2026</time> against the project’s desktop documentation and the <a href="https://github.com/shivamjg101/chessrabbit/releases/tag/desktop-v0.1.2">0.1.2 release</a>. This is a first-party product reference maintained by the ChessRabbit project.</p>
+    body: `<p>These facts were checked on <time datetime="2026-10-08">8 October 2026</time> against the project’s desktop documentation and the <a href="https://github.com/shivamjg101/chessrabbit/releases/tag/desktop-v0.1.2">0.1.2 release</a>. This is a first-party reference for <a href="https://github.com/shivamjg101/chessrabbit">shivamjg101/chessrabbit</a>, maintained under the GitHub account <strong>shivamjg101</strong>. This project’s official website is <a href="../">ChessRabbit on GitHub Pages</a>; check that repository when identifying the software or verifying a download.</p>
 <h2 id="at-a-glance">ChessRabbit at a glance</h2>
 <table><caption>Features and compatibility</caption><tbody>
 <tr><th scope="row">Product type</th><td>Desktop chess analysis and training app; Stockfish is the bundled chess engine.</td></tr>
