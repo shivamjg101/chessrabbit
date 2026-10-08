@@ -38,7 +38,7 @@ node website/check.mjs
 
 ## Search visibility after launch
 
-The site includes descriptive, unique titles and meta descriptions, canonical URLs, a sitemap, social previews, SoftwareApplication/Article structured data, accessible static HTML, and three linked guides targeting specific searches. No fabricated reviews, ratings, rankings, or keyword stuffing are included.
+The site includes descriptive, unique titles and meta descriptions, canonical URLs, a sitemap, social previews, SoftwareApplication/Article structured data, accessible static HTML, and five linked guides covering Stockfish, offline analysis, PGN review, and Leela Chess Zero installation and analysis. No fabricated reviews, ratings, rankings, or keyword stuffing are included.
 
 The linked `/about/` page gives readers and search systems a source-backed reference for features, supported platforms, use cases, and limitations. `/product.json` exports exactly the SoftwareApplication metadata embedded on the homepage. Keep the visible facts, prerelease status, version, and metadata accurate together when a new release ships.
 

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('./dist/', import.meta.url));
 const allFiles = await readdir(root, { recursive: true });
 const pages = allFiles.filter(file => file.endsWith('index.html'));
-assert.equal(pages.length, 5, 'Expected the homepage, product facts, and three guides');
+assert.equal(pages.length, 7, 'Expected the homepage, product facts, and five guides');
 const titles = new Set(), descriptions = new Set(), canonicals = new Set();
 for (const file of pages) {
   const absolute = join(root, file);

@@ -34,6 +34,8 @@ Use **Engines → Add Leela Chess Zero** to select your local `lc0.exe` and netw
 
 ## System Requirements
 
+See also the Leela-specific installation and analysis steps below. Its engine and network are installed separately from ChessRabbit.
+
 | Requirement | Minimum | Recommended |
 | --- | --- | --- |
 | Operating system | Windows 10 or Windows 11 | Windows 11 |
@@ -44,6 +46,49 @@ Use **Engines → Add Leela Chess Zero** to select your local `lc0.exe` and netw
 | Graphics | Any standard Windows display | Dedicated GPU only if you plan to run GPU Leela |
 
 ChessRabbit includes Stockfish, so no separate chess engine is required for basic analysis. Leela Chess Zero, neural-network files, Syzygy tablebases and large reference datasets are optional separate downloads.
+
+## Leela Chess Zero: install and analyse
+
+These instructions are for the **ChessRabbit Windows desktop app**. Leela Chess Zero (Lc0) is optional; Stockfish remains included. Read the website guides: [Install Leela Chess Zero](https://shivamjg101.github.io/chessrabbit/install-leela-chess-zero/) and [Analyse with Leela Chess Zero](https://shivamjg101.github.io/chessrabbit/leela-chess-zero-analysis/).
+
+### Install Leela Chess Zero
+
+1. Open the [official Lc0 downloads page](https://lczero.org/play/download/) or ChessRabbit's **Engines → Leela downloads**. Choose a **Windows** package for your hardware:
+
+   | Hardware | Package to check on the official download page |
+   | --- | --- |
+   | NVIDIA GPU | CUDA or cuDNN, according to the listed GPU compatibility |
+   | AMD / Intel GPU | ONNX-DML; follow the package's runtime instructions |
+   | CPU only | DNNL/BLAS or OpenBLAS, according to CPU compatibility |
+
+2. Extract the **whole archive** into a permanent folder, such as `C:\ChessEngines\Lc0`. Keep `lc0.exe` and its supplied DLLs together. Use the package's included network to start when available; the [Lc0 quickstart](https://lczero.org/play/quickstart/) explains its files. You do not need `lc0-training-client.exe` to analyse games.
+3. Identify the network file, usually ending in `.pb.gz` or `.pb`. If the package has none, download a compatible one from the [official network guide](https://lczero.org/play/networks/bestnets/). Check the backend and memory requirements before changing networks. For ONNX-DML, follow the archive README for any required `directml.dll` setup. A newer network may not work with an older backend.
+4. Open ChessRabbit and let any queued or running game review finish. Temporarily turn **Auto** off in the board's **Engine** tab if needed. Choose **Engines → Add Leela Chess Zero…** from the desktop menu.
+5. Select **`lc0.exe`**, then select its **network file** in the second picker. Wait for **Leela Chess Zero is ready**. ChessRabbit records that network explicitly; selecting the executable alone is not enough. Keep both files at their chosen paths.
+6. Open the board's **Analysis settings → Engine** tab and choose **Leela Chess Zero** in the **Engine** dropdown. If Settings was open while you added it, close and reopen Settings to refresh the list.
+
+The ready message confirms engine registration. Analyse one position next to check that the network/backend can actually run. GPU drivers and runtime requirements depend on the package you selected; use its README rather than mixing files from different builds.
+
+### Analyse with Leela Chess Zero
+
+1. In **Analysis settings → Engine**, confirm **Leela Chess Zero** is selected. Start with **Number of lines: 1** and **Search depth: 12**, the lowest offered depth, for a quick compatibility check. Increase settings only after confirming acceptable response times on your computer.
+2. Open a game or play a few moves on the board. Enable **Auto-analyse on move** in Settings, or **Auto** in the board's **Engine** tab. Move to a position and wait for an evaluation and a candidate line. Click a candidate line to put it on the board as a variation.
+3. For a **full-game review**, use **Import PGN**, paste the game's PGN text, import it, and open the imported game from your library. In **Report**, select **Review this game**. The job uses the engine selected when you start it. A study or an unsaved board does not have this full-game review button.
+4. If the game already has a Stockfish review, changing the engine does not recompute it. Select Leela, then use **Re-run review** to replace the game's displayed review with the new results. Save notes you want to retain before comparing engines.
+5. Read the candidate continuations and the report together. Return to the same position with Stockfish selected if you want a second engine's view. Do not treat different engines' depth or nodes-per-second figures as equivalent measures of analysis quality.
+
+Local analysis works offline once the app, engine, network, and required runtimes are installed. Online imports still require internet. This engine selection affects **live analysis and game reviews**; **Play against the computer** continues to use Stockfish.
+
+### Leela troubleshooting
+
+- **Missing DLL / backend error:** re-extract the full matching package and follow its driver/runtime instructions. Do not copy only `lc0.exe` out of the archive.
+- **Weights/network error:** select the real `.pb.gz` or `.pb` file and check compatibility. Start with the package's default network; for memory errors, consult the network guide and try a smaller compatible network.
+- **Leela missing or “not configured”:** complete the desktop engine setup successfully, then close and reopen Analysis settings. Read the **Could not start engine** message if registration fails.
+- **“Finish or stop the current analysis…”:** wait for queued/running reviews to finish before replacing an engine. Turning Auto off does not cancel a queued full-game review.
+- **Files moved or network changed:** repeat **Engines → Add Leela Chess Zero…** with the new paths. This replaces the existing Leela entry; finish current jobs first.
+- **No evaluation:** check Leela is selected and Auto is enabled, then move to another position. If it remains slow, reduce search depth/lines and check your package/network choice. See **File → Open data folder → `desktop.log`** for additional diagnostics.
+
+For Docker or advanced engine profiles, use the separate [local setup guide](docs/LOCAL_SETUP.md).
 
 ## Release Files
 

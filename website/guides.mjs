@@ -1,5 +1,62 @@
 export const guides = [
   {
+    slug: 'install-leela-chess-zero',
+    title: 'Install Leela Chess Zero on Windows | ChessRabbit Guide',
+    heading: 'Give Leela a place at your board.',
+    description: 'Install Leela Chess Zero in ChessRabbit on Windows: choose a GPU or CPU build, select a network, add lc0.exe, and troubleshoot setup.',
+    category: 'LEELA / INSTALLATION',
+    modified: '2026-10-08',
+    intro: 'Add Leela Chess Zero (Lc0) to the ChessRabbit Windows desktop app, then choose it for your analysis. You will need an engine package and a compatible neural-network file.',
+    body: `<nav aria-label="Installation steps"><p><a href="#download">Choose a download</a> · <a href="#files">Prepare the files</a> · <a href="#connect">Connect to ChessRabbit</a> · <a href="#troubleshoot">Troubleshoot</a></p></nav>
+<div class="callout"><p>This guide is for Windows 10/11 x64 and the ChessRabbit desktop app. Leela is optional and is not bundled with ChessRabbit. The included Stockfish engine remains available. These steps configure the desktop app, not this website.</p></div>
+<h2 id="download">1. Choose the right Windows package.</h2>
+<p>Use <a href="https://lczero.org/play/download/">the official Lc0 downloads</a>, also available through <strong>Engines → Leela downloads</strong> in ChessRabbit. Match the package to your hardware using the compatibility list there:</p>
+<table><caption>Where to start when choosing a build</caption><thead><tr><th scope="col">Your hardware</th><th scope="col">Package family to check</th></tr></thead><tbody><tr><td>NVIDIA GPU</td><td>CUDA or cuDNN, depending on the supported GPU list.</td></tr><tr><td>AMD / Intel GPU</td><td>ONNX-DML; follow the package's runtime instructions.</td></tr><tr><td>CPU only</td><td>DNNL/BLAS or OpenBLAS, depending on CPU compatibility.</td></tr></tbody></table>
+<p>Keep the downloaded build's README handy for driver and runtime requirements. Package names and hardware support can change, so use the official selector instead of an old direct ZIP link.</p>
+<h2 id="files">2. Extract the engine and find its network.</h2>
+<p>Extract the entire archive into a permanent folder, for example <code>C:\\ChessEngines\\Lc0</code>. Keep <code>lc0.exe</code> alongside its supplied DLLs. Start with the bundled network when available. The training client is not needed for analysis; see the <a href="https://lczero.org/play/quickstart/">official quickstart</a> for the package contents.</p>
+<p>Find the <code>.pb.gz</code> or <code>.pb</code> network file. If none is supplied, consult the <a href="https://lczero.org/play/networks/bestnets/">official network guide</a>. Check backend compatibility and memory needs. ONNX-DML packages may require a separate <code>directml.dll</code> step described in their README; older DirectX/OpenCL backends cannot use every newer network.</p>
+<h2 id="connect">3. Add Leela through the desktop menu.</h2>
+<ol><li><strong>Finish current review jobs.</strong> Do not replace an engine while a game review is queued or running. Turn off <strong>Auto</strong> in the board's Engine tab if necessary to pause automatic position analysis.</li><li>Choose <strong>Engines → Add Leela Chess Zero…</strong> from ChessRabbit's desktop menu.</li><li>In the first file picker, select <strong>lc0.exe</strong> from your extracted folder.</li><li>In the next picker, select the <strong>network file</strong>. ChessRabbit saves that explicit path as Leela's weights selection.</li><li>Wait for <strong>Leela Chess Zero is ready</strong>. If you see <strong>Could not start engine</strong>, use its error message to check the files and runtime requirements.</li><li>Open the board's <strong>Analysis settings → Engine</strong> tab. Choose <strong>Leela Chess Zero</strong> in the Engine dropdown. If Settings was already open, close and reopen it to refresh the list.</li></ol>
+<p>The ready message confirms registration. The next check is a real position: enable Auto, play a move, and wait for a candidate line. Follow the <a href="../leela-chess-zero-analysis/">Leela analysis guide</a> for the exact steps and full-game review.</p>
+<h2 id="troubleshoot">If setup does not work</h2>
+<ul><li><strong>Missing DLL or GPU/backend error:</strong> use the complete package and its documented runtime/driver setup. Copying only the executable is not enough.</li><li><strong>Network cannot load:</strong> select the actual network file, check compatibility, and try the package's default network. For memory errors, try a smaller compatible network from the official guide.</li><li><strong>Leela is absent or marked “not configured”:</strong> complete registration successfully and reopen Analysis settings.</li><li><strong>ChessRabbit says to finish current analysis:</strong> wait for queued/running reviews. Switching Auto off does not cancel those jobs.</li><li><strong>You moved an engine or network:</strong> use Add Leela Chess Zero again with the new paths. This updates the existing Leela entry, so finish current jobs first.</li></ul>
+<p>Keep the engine and network at the chosen locations after registration. For additional diagnostics, use <strong>File → Open data folder</strong> and inspect <code>desktop.log</code>. Docker users should follow the separate <a href="https://github.com/shivamjg101/chessrabbit/blob/main/docs/LOCAL_SETUP.md">local engine configuration guide</a>.</p>
+<p><a href="../leela-chess-zero-analysis/">Next: analyse your first position and game with Leela →</a></p>`,
+  },
+  {
+    slug: 'leela-chess-zero-analysis',
+    title: 'Analyse Chess Games with Leela Chess Zero | ChessRabbit',
+    heading: 'Your first analysis with Leela.',
+    description: 'Use Leela Chess Zero in ChessRabbit for live position analysis and full-game PGN reviews. Select the engine, explore lines, and compare with Stockfish.',
+    category: 'LEELA / ANALYSIS',
+    modified: '2026-10-08',
+    intro: 'Once Leela is installed, choose it in Analysis settings and start with a single position. Then use the same engine to review a saved game.',
+    body: `<nav aria-label="Analysis steps"><p><a href="#select">Select Leela</a> · <a href="#position">Analyse a position</a> · <a href="#game-review">Review a game</a> · <a href="#compare">Compare engines</a></p></nav>
+<p>These instructions follow ChessRabbit's Windows desktop controls. If Leela has not been added yet, complete the <a href="../install-leela-chess-zero/">installation guide</a> first. The app needs both <code>lc0.exe</code> and a compatible network; this website does not run Leela.</p>
+<h2 id="select">1. Select Leela and start small.</h2>
+<ol><li>Open <strong>Analysis settings</strong> from the board's settings button, then the <strong>Engine</strong> tab.</li><li>Under Game review, choose <strong>Leela Chess Zero</strong> in the <strong>Engine</strong> dropdown. Despite the section heading, the selection applies to both live analysis and game reviews.</li><li>For your first compatibility check, set <strong>Search depth</strong> to <strong>12</strong>, the lowest offered choice, and <strong>Number of lines</strong> to <strong>1</strong>. These are starting points, not a speed guarantee.</li><li>Enable <strong>Auto-analyse on move</strong> and close Settings. You can also toggle <strong>Auto</strong> in the board's Engine tab.</li></ol>
+<h2 id="position">2. Analyse a position.</h2>
+<p>Open a saved game or play a few moves on the board. Select the <strong>Engine</strong> tab and navigate to a position. Wait for an evaluation and candidate continuation. The first real search checks that your selected network and backend can work together; successful registration alone does not establish that.</p>
+<p>Click a candidate line to put its moves on the board as a variation. Step through the replies and compare the plan with the move you originally considered. You can request more lines in Settings after confirming that one line responds comfortably on your hardware.</p>
+<div class="callout"><p>If you only see “Waiting for the engine,” check the selected engine, enable Auto, and move to another position. For persistent errors or no output, return to the <a href="../install-leela-chess-zero/#troubleshoot">installation troubleshooting steps</a> and inspect the error message or <code>desktop.log</code>.</p></div>
+<h2 id="game-review">3. Review a complete PGN game.</h2>
+<ol><li>Choose <strong>Import PGN</strong> in the analysis workspace, paste your game's PGN text, and import it. Open the imported game from the library. If its rail is hidden, open the games list first.</li><li>Confirm <strong>Leela Chess Zero</strong> is selected in Analysis settings before starting the review.</li><li>Open the board's <strong>Report</strong> tab and click <strong>Review this game</strong>. Wait for the job to finish before changing engine files or starting another comparison.</li><li>Use the evaluation curve and move annotations to revisit turning points. Switch to Engine to explore alternative continuations from those positions.</li></ol>
+<p>Full-game review requires a saved/imported game. A study or an unsaved board can be explored with live analysis, but does not expose the same review button. For a small setup check, you can import this short PGN:</p>
+<pre><code>[Event "Leela setup check"]
+[Result "*"]
+
+1. e4 e5 2. Nf3 Nc6
+3. Bc4 Bc5 *</code></pre>
+<p>If the game already has a review, the button reads <strong>Re-run review</strong>. Selecting Leela does not automatically regenerate an existing Stockfish report. Start a new review to update it; the displayed results for the game are replaced, rather than kept as a side-by-side comparison.</p>
+<h2 id="compare">4. Compare ideas with Stockfish.</h2>
+<p>Save any notes you want to retain. At the same position, switch the selected engine to Stockfish to get another set of candidate lines, then switch back to Leela when needed. Give each engine enough time to produce useful continuations. An equal depth setting or nodes-per-second figure is not a like-for-like strength comparison between different search approaches.</p>
+<p>Focus on the concrete continuation: what threat does the move create, and what is the best reply? Where engines disagree, follow the variations instead of treating one early score as a verdict. Increase settings only when your computer remains responsive.</p>
+<h2 id="scope">What this changes—and what it does not</h2>
+<p>The engine selection controls <strong>live analysis and game reviews</strong>. <strong>Play against the computer</strong> still uses Stockfish's adjustable strength. Local Leela analysis can work offline after the app, engine, network, and required runtimes are installed; online game imports still need internet.</p>
+<p>For engine setup and file locations, see the <a href="../install-leela-chess-zero/">installation guide</a> and <a href="https://github.com/shivamjg101/chessrabbit/blob/main/docs/DESKTOP.md">desktop documentation</a>. For a general review routine, read <a href="../pgn-game-review/">turning a PGN into a useful lesson</a>.</p>`,
+  },
+  {
     slug: 'about',
     title: 'ChessRabbit Features, Compatibility & Product Facts',
     heading: 'Is ChessRabbit right for you?',
