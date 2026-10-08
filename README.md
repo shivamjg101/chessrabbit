@@ -2,6 +2,8 @@
 
 Free desktop chess analysis and training for Windows. ChessRabbit runs on your computer, stores your games locally, and works with Stockfish, Leela Chess Zero (Lc0), or another UCI engine.
 
+[Visit the ChessRabbit website](https://shivamjg101.github.io/chessrabbit/) for an introduction, downloads, and guides to Stockfish, offline analysis, and PGN game review.
+
 ![ChessRabbit preview](docs/assets/chessrabbit-social-preview.svg)
 
 [Download ChessRabbit-Setup.exe](https://github.com/shivamjg101/chessrabbit/releases/download/desktop-v0.1.2/ChessRabbit-Setup.exe) · [Read the desktop guide](docs/DESKTOP.md) · [Support the project](https://buymeacoffee.com/shivamjg101)
@@ -94,6 +96,8 @@ Your desktop games and results are stored in `%APPDATA%/ChessRabbit/local`. Dock
 - Use the [launch kit](docs/LAUNCH_KIT.md) if you want to share ChessRabbit with other chess players.
 
 ## Project layout
+
+The standalone GitHub Pages marketing site lives in [`website/`](website/README.md). Build it with `node website/build.mjs`; see its guide for free hosting and search indexing setup.
 
 | Directory | Purpose |
 | --- | --- |
