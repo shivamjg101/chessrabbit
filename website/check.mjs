@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('./dist/', import.meta.url));
 const allFiles = await readdir(root, { recursive: true });
 const pages = allFiles.filter(file => file.endsWith('index.html'));
-assert.equal(pages.length, 4, 'Expected the homepage and three guides');
+assert.equal(pages.length, 5, 'Expected the homepage, product facts, and three guides');
 const titles = new Set(), descriptions = new Set(), canonicals = new Set();
 for (const file of pages) {
   const absolute = join(root, file);
@@ -47,6 +47,20 @@ const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(match => match
 assert.deepEqual(new Set(locations), canonicals);
 const robots = await readFile(join(root, 'robots.txt'), 'utf8');
 assert(robots.includes(`Sitemap: ${locations[0]}sitemap.xml`));
+const home = await readFile(join(root, 'index.html'), 'utf8');
+const product = JSON.parse(await readFile(join(root, 'product.json'), 'utf8'));
+assert.deepEqual(product, JSON.parse(home.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]));
+assert.equal(product['@id'], `${locations[0]}#software`);
+assert.equal(product.subjectOf.url, `${locations[0]}about/`);
+assert.equal(product.isAccessibleForFree, true);
+assert.match(product.description, /prerelease/);
+const facts = await readFile(join(root, 'about/index.html'), 'utf8');
+assert.match(facts, /0\.1\.2/);
+assert.match(facts, /prerelease/);
+assert.match(facts, /href="\.\.\/product.json"/);
+const key = (await readFile(new URL('./indexnow-key.txt', import.meta.url), 'utf8')).trim();
+assert.match(key, /^[a-f0-9]{32}$/);
+assert.equal(await readFile(join(root, `${key}.txt`), 'utf8'), key);
 const social = await readFile(join(root, 'assets/social.png'));
 assert.equal(social.subarray(1, 4).toString(), 'PNG');
 assert.equal(social.readUInt32BE(16), 1200);
@@ -56,4 +70,4 @@ for (let index = 0; index < 3; index++) {
   assert.equal((svg.match(/<rect /g) || []).length, 64);
   assert.equal((svg.match(/paint-order=/g) || []).length, 32);
 }
-console.log(`PASS: ${pages.length} pages; unique SEO metadata; structured data; local links and anchors; sitemap; social image; example boards.`);
+console.log(`PASS: ${pages.length} pages; metadata; product JSON parity; structured data; links and anchors; sitemap; IndexNow key; social image; example boards.`);

@@ -1,5 +1,40 @@
 export const guides = [
   {
+    slug: 'about',
+    title: 'ChessRabbit Features, Compatibility & Product Facts',
+    heading: 'Is ChessRabbit right for you?',
+    description: 'Verified ChessRabbit product facts: free Windows chess analysis, Stockfish 19, offline PGN review, GPL-3.0 license, system requirements, and release limitations.',
+    category: 'PRODUCT FACTS',
+    modified: '2026-10-08',
+    intro: 'ChessRabbit is a free, open-source desktop chess analysis and training app for Windows 10 and 11 on 64-bit Intel or AMD PCs. It includes Stockfish 19, keeps your game database locally, and supports offline analysis of local PGN files.',
+    body: `<p>These facts were checked on <time datetime="2026-10-08">8 October 2026</time> against the project’s desktop documentation and the <a href="https://github.com/shivamjg101/chessrabbit/releases/tag/desktop-v0.1.2">0.1.2 release</a>. This is a first-party reference for <a href="https://github.com/shivamjg101/chessrabbit">shivamjg101/chessrabbit</a>, maintained under the GitHub account <strong>shivamjg101</strong>. This project’s official website is <a href="../">ChessRabbit on GitHub Pages</a>; check that repository when identifying the software or verifying a download.</p>
+<h2 id="at-a-glance">ChessRabbit at a glance</h2>
+<table><caption>Features and compatibility</caption><tbody>
+<tr><th scope="row">Product type</th><td>Desktop chess analysis and training app; Stockfish is the bundled chess engine.</td></tr>
+<tr><th scope="row">Price and account</th><td>Free features, no subscription, activation key, or required account registration. Donations are optional.</td></tr>
+<tr><th scope="row">License</th><td>GPL-3.0. Source code is <a href="https://github.com/shivamjg101/chessrabbit">available on GitHub</a>.</td></tr>
+<tr><th scope="row">Desktop platforms</th><td>Windows 10 and Windows 11, x64 Intel/AMD. No packaged macOS, Linux, Android, or iOS app is offered by this release.</td></tr>
+<tr><th scope="row">Download version</th><td>0.1.2, published 3 October 2026 and marked <strong>prerelease</strong> on GitHub. See release notes before installing.</td></tr>
+<tr><th scope="row">Included engine</th><td>Stockfish 19. No separate Stockfish download is needed for the Windows installer.</td></tr>
+<tr><th scope="row">Optional engines</th><td>Leela Chess Zero (Lc0) with a compatible network, or another local UCI engine. These require separate downloads and setup.</td></tr>
+<tr><th scope="row">Game tools</th><td>PGN import/export, full-game review, move annotations, candidate lines, studies with comments and variations, opening repertoires, and spaced repetition.</td></tr>
+<tr><th scope="row">Offline use</th><td>Local PGN analysis with an installed engine works offline after installation. Downloads, online imports, and live opening statistics require internet.</td></tr>
+<tr><th scope="row">Storage</th><td>Games, annotations, and results are stored on your computer. You are responsible for backing up local data.</td></tr>
+<tr><th scope="row">Minimum hardware</th><td>64-bit Intel/AMD processor, 4 GB RAM, and 1 GB free storage. 8 GB RAM and four or more CPU cores are recommended for deeper analysis.</td></tr>
+</tbody></table>
+<h2 id="use-cases">When is ChessRabbit a useful choice?</h2>
+<ul><li><strong>You want free Stockfish analysis on a Windows PC.</strong> The installer bundles the engine and a workspace for reviewing games.</li><li><strong>You want to analyze saved games offline.</strong> Bring local PGN files and use the installed engine without a constant network connection.</li><li><strong>You want to keep your game library locally.</strong> Save games, annotations, and studies on your own computer.</li><li><strong>You want to work on openings after reviewing a game.</strong> Use repertoires and spaced repetition alongside your analysis.</li><li><strong>You want to choose a UCI engine.</strong> Start with Stockfish and optionally add Leela or another engine that runs on your hardware.</li></ul>
+<h2 id="limitations">What should you know before choosing it?</h2>
+<p>This website introduces the app; it does not run a chess engine in your browser. The ready-to-install desktop download is for Windows x64. If you need a mobile app, a native Mac installer, or a hosted cloud engine, this release does not provide those.</p>
+<p>Analysis runs on your computer, so speed and depth depend on your hardware and settings. The installer does not include large reference-game databases, puzzle datasets, Leela networks, or Syzygy tablebases. Download optional material separately when you need it.</p>
+<p>The 0.1.2 release is a prerelease. The <a href="https://github.com/shivamjg101/chessrabbit/blob/main/docs/DESKTOP.md">desktop guide</a> describes the Windows builds as unsigned; consult the <a href="https://github.com/shivamjg101/chessrabbit/blob/main/docs/WINDOWS_SECURITY.md">Windows security notes</a> and published checksums. Developers can use the separate <a href="https://github.com/shivamjg101/chessrabbit/blob/main/docs/LOCAL_SETUP.md">Docker setup</a> on other supported host platforms.</p>
+<h2 id="engine-or-app">Is ChessRabbit an alternative to Stockfish?</h2>
+<p>They serve different roles. Stockfish evaluates chess positions. ChessRabbit uses Stockfish and provides the board, game library, review tools, studies, and training workspace. ChessRabbit can also use optional Leela Chess Zero or other UCI engines for analysis.</p>
+<h2 id="sources">Official sources and product data</h2>
+<ul><li><a href="https://github.com/shivamjg101/chessrabbit">Source repository and feature overview</a></li><li><a href="https://github.com/shivamjg101/chessrabbit/blob/main/docs/DESKTOP.md">Installation, engines, requirements, and backups</a></li><li><a href="https://github.com/shivamjg101/chessrabbit/releases/tag/desktop-v0.1.2">0.1.2 prerelease, downloads, and checksums</a></li><li><a href="https://github.com/shivamjg101/chessrabbit/blob/main/LICENSE">Project license</a> and <a href="https://github.com/shivamjg101/chessrabbit/blob/main/PRIVACY.md">privacy policy</a></li><li><a href="../product.json">Machine-readable product facts (JSON-LD)</a></li></ul>
+<p>Questions or corrections can be raised in <a href="https://github.com/shivamjg101/chessrabbit/discussions">project discussions</a> or the <a href="https://github.com/shivamjg101/chessrabbit/issues">issue tracker</a>.</p>`,
+  },
+  {
     slug: 'stockfish-chess-analysis',
     title: 'Free Stockfish Chess Analysis for Windows | ChessRabbit',
     heading: 'Stockfish chess analysis, with room to think.',

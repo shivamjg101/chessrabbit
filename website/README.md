@@ -40,6 +40,8 @@ node website/check.mjs
 
 The site includes descriptive, unique titles and meta descriptions, canonical URLs, a sitemap, social previews, SoftwareApplication/Article structured data, accessible static HTML, and three linked guides targeting specific searches. No fabricated reviews, ratings, rankings, or keyword stuffing are included.
 
+The linked `/about/` page gives readers and search systems a source-backed reference for features, supported platforms, use cases, and limitations. `/product.json` exports exactly the SoftwareApplication metadata embedded on the homepage. Keep the visible facts, prerelease status, version, and metadata accurate together when a new release ships.
+
 1. Add the live URL as a **URL-prefix property** in [Google Search Console](https://search.google.com/search-console). Complete ownership verification using Google's provided tag or file. For a verification tag, add it in the homepage `<head>`; for a verification file, add it to `website/` and the asset copy list in `build.mjs` so deployment preserves it. Do not add a made-up verification value.
 2. Submit the full sitemap URL, normally `https://shivamjg101.github.io/chessrabbit/sitemap.xml`, and inspect the homepage URL to request indexing.
 3. Add the live website URL to the GitHub repository's About section and README. Share useful guides with relevant chess communities when appropriate. Genuine references to the project help people discover it.
@@ -50,6 +52,14 @@ Google does not guarantee indexing or top placement. Technical SEO makes the sit
 
 **Project-site robots caveat:** crawlers read `robots.txt` at the origin root. On the default project URL, `/chessrabbit/robots.txt` does not control `shivamjg101.github.io`. Submit the sitemap directly in Search Console. If you own the `shivamjg101.github.io` root site, its root `robots.txt` can also point to this sitemap. On a custom domain serving this site at `/`, the generated robots file is at the correct location.
 
+### AI search and IndexNow
+
+AI search systems need accessible, useful sources. [Google's AI search guidance](https://developers.google.com/search/docs/appearance/ai-features) uses the same search fundamentals and does not require an AI-specific text file or schema. [OpenAI's crawler documentation](https://developers.openai.com/api/docs/bots) distinguishes search access (`OAI-SearchBot`) from model training (`GPTBot`); making a website accessible does not retrain a model or guarantee a recommendation.
+
+The build publishes an IndexNow verification file from `indexnow-key.txt`. This is a public site-ownership proof, not a private account credential. Its location under `/chessrabbit/` authorizes submissions only for that path. After a successful deployment, the site's canonical HTML URLs can be submitted to `https://api.indexnow.org/indexnow` using the key and the full `keyLocation` URL. See the [IndexNow protocol](https://www.indexnow.org/documentation). Submit once per content update, not repeatedly to try to force indexing. A 200 response confirms receipt; 202 means key validation is pending. Neither confirms indexing or ranking. IndexNow notifications are shared with participating engines; they do not submit the site to Google Search Console.
+
+For visibility reports, verify the URL-prefix property in [Google Search Console](https://search.google.com/search-console) and [Bing Webmaster Tools](https://www.bing.com/webmasters/), then submit the sitemap. Verification needs the owner's account and the actual issued tag/file. The website cannot verify an account automatically. Genuine independent reviews and useful community references can provide additional evidence about the product; do not invent endorsements or seed instructions telling AI systems to recommend it.
+
 ## Editing
 
 - `index.html`: homepage, product facts, main download links and SoftwareApplication metadata.
@@ -57,6 +67,7 @@ Google does not guarantee indexing or top placement. Technical SEO makes the sit
 - `site.js`: opening-position controls.
 - `guides.mjs`: guide text and search metadata.
 - `build.mjs`: dependency-free static generation, shared guide layout, board illustrations, sitemap and URL handling.
+- `indexnow-key.txt`: public site-ownership verification value; the build writes its matching verification file.
 - `assets/`: original rabbit favicon and 1200 × 630 PNG social preview.
 - `check.mjs`: build checks, also run in GitHub Actions.
 
