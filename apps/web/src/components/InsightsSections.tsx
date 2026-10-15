@@ -453,6 +453,29 @@ export function MovesSection({ data }: { data: Insights }) {
         </table>
       </ChartCard>
 
+      <ChartCard title="Move quality under time pressure" hint="Uses clock times recorded after each move in your reviewed games.">
+        {(data.moves.time_pressure?.under_30?.moves ?? 0) > 0 ||
+        (data.moves.time_pressure?.over_30?.moves ?? 0) > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {([ ["under_30", "30 seconds or less"], ["over_30", "Over 30 seconds"] ] as const).map(([key, label]) => {
+              const band = data.moves.time_pressure?.[key];
+              return (
+                <div key={key} className="card-tight p-3">
+                  <p className="text-xs text-muted">{label}</p>
+                  <p className="mt-1 font-mono text-lg">
+                    {band?.moves ? `${Math.round(100 * band.errors / band.moves)}%` : "—"}
+                    <span className="ml-2 text-xs text-muted">inaccuracies or worse</span>
+                  </p>
+                  <p className="mt-1 text-xs text-muted">{band?.moves ?? 0} moves with clock data</p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">No move clocks were recorded in these reviewed games.</p>
+        )}
+      </ChartCard>
+
       {pieces.length > 0 && (
         <>
           <ChartCard

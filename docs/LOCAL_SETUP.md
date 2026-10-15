@@ -2,7 +2,7 @@
 
 ## Windows desktop app
 
-Download [ChessRabbit-Setup.exe](https://github.com/shivamjg101/chessrabbit/releases/download/desktop-v0.1.2/ChessRabbit-Setup.exe), run it, and open ChessRabbit from the desktop or Start menu. The installer includes Stockfish and local storage. Desktop users do not need the development setup below.
+Download the [published 0.1.2 installer](https://github.com/shivamjg101/chessrabbit/releases/download/desktop-v0.1.2/ChessRabbit-Setup.exe), run it, and open ChessRabbit from the desktop or Start menu. The desktop source is at 0.1.4; its locally built installer is at `dist/windows/ChessRabbit-Setup.exe` after following the [build instructions](DESKTOP.md#build-the-installer), but it is not yet a public download. The installer includes Stockfish and local storage. Desktop users do not need the development setup below.
 
 For Leela, use **Engines → Add Leela Chess Zero** in the app and select your `lc0.exe` and network file. Use **Engines → Add UCI engine** for another engine, then select it in Analysis settings. See [the desktop guide](DESKTOP.md) for Windows installation, engines, backups and troubleshooting.
 
@@ -105,6 +105,12 @@ For an existing database:
 ```powershell
 docker compose cp db/migrations/016_community_edition.sql postgres:/tmp/016.sql
 docker compose exec -T postgres psql -U chessrabbit -d chessrabbit -v ON_ERROR_STOP=1 -f /tmp/016.sql
+docker compose cp db/migrations/017_personal_puzzles.sql postgres:/tmp/017.sql
+docker compose exec -T postgres psql -U chessrabbit -d chessrabbit -v ON_ERROR_STOP=1 -f /tmp/017.sql
+docker compose cp db/migrations/018_analysis_snapshots.sql postgres:/tmp/018.sql
+docker compose exec -T postgres psql -U chessrabbit -d chessrabbit -v ON_ERROR_STOP=1 -f /tmp/018.sql
+docker compose cp db/migrations/019_game_variants.sql postgres:/tmp/019.sql
+docker compose exec -T postgres psql -U chessrabbit -d chessrabbit -v ON_ERROR_STOP=1 -f /tmp/019.sql
 docker compose up --build -d
 ```
 

@@ -42,6 +42,8 @@ export default function PuzzlesPage() {
   const game = useRef(new Chess());
   const puzzleRef = useRef<Puzzle | null>(null);
   const modeRef = useRef<Mode>("practice");
+  const sourceRef = useRef<"public" | "mine">("public");
+  const requestSeq = useRef(0);
   const themeRef = useRef("");
   const scoreRef = useRef(0);
   const strikesRef = useRef(0);
@@ -58,6 +60,7 @@ export default function PuzzlesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [mode, setMode] = useState<Mode>("practice");
+  const [source, setSource] = useState<"public" | "mine">("public");
   const [retrying, setRetrying] = useState(false);
   const [theme, setTheme] = useState("");
   const [themes, setThemes] = useState<PuzzleTheme[]>([]);
@@ -67,16 +70,22 @@ export default function PuzzlesPage() {
   const [rushBest, setRushBest] = useState(0);
 
   const loadPuzzle = useCallback(async (ratingOverride?: number) => {
+    const seq = ++requestSeq.current;
     setStatus("loading");
+    setPuzzle(null);
+    puzzleRef.current = null;
+    setError(null);
     setFeedback(null);
     setExpectedSan(null);
     setRetrying(false);
     retryingRef.current = false;
     try {
       const p = await api.nextPuzzle({
-        theme: modeRef.current === "practice" && themeRef.current ? themeRef.current : undefined,
+        theme: modeRef.current === "practice" && sourceRef.current === "public" && themeRef.current ? themeRef.current : undefined,
         rating: ratingOverride,
+        source: modeRef.current === "practice" ? sourceRef.current : "public",
       });
+      if (seq !== requestSeq.current) return;
       const g = new Chess(p.fen);
       game.current = g;
       puzzleRef.current = p;
@@ -88,17 +97,15 @@ export default function PuzzlesPage() {
       setSolIdx(0);
       setStatus("intro");
       setTimeout(() => {
+        if (seq !== requestSeq.current) return;
         g.move(uciToMove(p.moves[0]));
         setFen(g.fen());
         setSolIdx(1);
         setStatus("solving");
       }, 600);
     } catch (e) {
-
-        setError(
-          (e as { message?: string })?.message ??
-            "Could not load a puzzle. Have puzzles been loaded on the server?"
-        );
+      if (seq !== requestSeq.current) return;
+      setError(e instanceof ApiError ? e.message : "Could not load a puzzle.");
       setStatus("loading");
     }
   }, []);
@@ -185,7 +192,9 @@ export default function PuzzlesPage() {
 
       setStatus("opponent");
       setSolIdx(nextIdx);
+      const seq = requestSeq.current;
       setTimeout(() => {
+        if (seq !== requestSeq.current) return;
         g.move(uciToMove(puzzle.moves[nextIdx]));
         setFen(g.fen());
         setSolIdx(nextIdx + 1);
@@ -229,6 +238,12 @@ export default function PuzzlesPage() {
     loadPuzzle();
   }
 
+  function pickSource(next: "public" | "mine") {
+    sourceRef.current = next;
+    setSource(next);
+    loadPuzzle();
+  }
+
   // Rewind to the start (just after the setup move) so the same puzzle can be
   // attempted again. Marked as a retry so it doesn't touch the rating again.
   function resetToStart(p: Puzzle) {
@@ -255,8 +270,10 @@ export default function PuzzlesPage() {
     if (!p) return;
     resetToStart(p);
     setStatus("showing");
+    const seq = requestSeq.current;
     let i = 1;
     const step = () => {
+      if (seq !== requestSeq.current) return;
       if (i >= p.moves.length) {
         setStatus("shown");
         return;
@@ -270,7 +287,7 @@ export default function PuzzlesPage() {
   }
 
   const solving = status === "solving" || status === "opponent" || status === "intro";
-  const showBoard = mode === "practice" || rushActive;
+  const showBoard = (mode === "practice" && !!puzzle) || rushActive;
 
   return (
     <div className="min-h-screen p-4 max-w-5xl mx-auto">
@@ -278,7 +295,7 @@ export default function PuzzlesPage() {
         <Link href="/app" className="btn">← Board</Link>
         <Link href="/train" className="btn">♞ Repertoire</Link>
         <h1 className="font-display text-xl">Puzzles</h1>
-        {mode === "practice" && stats && (
+        {mode === "practice" && source === "public" && stats && (
           <span className="ml-auto flex items-center gap-4 text-sm">
             <span>
               <span className="text-muted">Rating </span>
@@ -320,7 +337,18 @@ export default function PuzzlesPage() {
             {m === "practice" ? "Practice" : "Puzzle Rush"}
           </button>
         ))}
-        {mode === "practice" && themes.length > 0 && (
+        {mode === "practice" && (
+          <select
+            className="input ml-2 text-sm"
+            value={source}
+            onChange={(e) => pickSource(e.target.value as "public" | "mine")}
+            aria-label="Puzzle source"
+          >
+            <option value="public">Shared puzzles</option>
+            <option value="mine">My games</option>
+          </select>
+        )}
+        {mode === "practice" && source === "public" && themes.length > 0 && (
           <select
             className="input text-sm ml-2 w-48"
             value={theme}
@@ -418,7 +446,9 @@ export default function PuzzlesPage() {
           {mode === "practice" && status === "solved" && (
             <div className="bg-accent/20 rounded p-4">
               <p className="text-lg font-semibold text-accent">✓ Solved!</p>
-              {feedback ? (
+              {feedback && source === "mine" ? (
+                <p className="text-xs text-muted mt-1">Saved to your practice history. Puzzle rating unchanged.</p>
+              ) : feedback ? (
                 <RatingLine feedback={feedback} />
               ) : (
                 retrying && (
@@ -472,7 +502,7 @@ export default function PuzzlesPage() {
             puzzle &&
             (status === "solved" || status === "failed" || status === "shown") && (
             <div className="bg-panelAlt rounded p-3 text-xs text-muted space-y-1">
-              <div>Puzzle rating <span className="text-ink font-mono">{puzzle.rating}</span></div>
+              {source === "public" && <div>Puzzle rating <span className="text-ink font-mono">{puzzle.rating}</span></div>}
               {puzzle.themes.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {puzzle.themes.map((t) => (

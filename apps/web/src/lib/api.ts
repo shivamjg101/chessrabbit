@@ -64,6 +64,7 @@ export interface PuzzleTheme {
 
 export interface Game {
   id: number;
+  variant: "standard" | "chess960";
   white: string;
   black: string;
   white_elo: number | null;
@@ -78,7 +79,14 @@ export interface Game {
 
 export interface GameDetail extends Game {
   movetext: string;
+  start_fen: string | null;
   annotations: Annotation[];
+}
+
+export interface GameLine {
+  variant: "standard" | "chess960";
+  start_fen: string;
+  moves: { ply: number; san: string; uci: string; fen: string }[];
 }
 
 export interface Annotation {
@@ -122,6 +130,25 @@ export interface EvalLine {
   cp: number | null;
   mate: number | null;
   pv: string[];
+}
+
+export interface Chess960Position {
+  fen: string;
+  turn: "white" | "black";
+  moves: { san: string; uci: string }[];
+  result: string | null;
+}
+
+export interface AnalysisSnapshot {
+  id: number;
+  fen: string;
+  engine_id: string;
+  engine_version: string;
+  engine_cache_key: string;
+  depth: number;
+  lines: EvalLine[];
+  note: string;
+  created_at: string;
 }
 
 export type ExplorerScope = "reference" | "mine" | "lichess_live";
@@ -250,6 +277,14 @@ export interface OtbPlayer {
 }
 
 export interface Insights {
+  practice_games?: {
+    id: number;
+    white: string;
+    black: string;
+    opening: string | null;
+    played_on: string | null;
+    critical_moves: number;
+  }[];
   /** Set only when looking at somebody else. */
   player?: string;
   source?: InsightsSource;
@@ -303,6 +338,7 @@ export interface Insights {
   moves: {
     quality: { cls: string; moves: number; pct: number }[];
     quality_by_month: Record<string, Record<string, number>>;
+    time_pressure?: Record<string, { moves: number; errors: number }>;
     pieces: { piece: string; moves: number; accuracy: number | null }[];
     castling: {
       phase?: Record<string, number>;
@@ -561,9 +597,10 @@ export const api = {
 
   me: () => request<Me>("/me"),
 
-  listGames: (page = 1) => request<Game[]>(`/games?page=${page}`),
+  listGames: (page = 1, q = "") => request<Game[]>(`/games?page=${page}${q ? `&q=${encodeURIComponent(q)}` : ""}`),
 
   getGame: (id: number) => request<GameDetail>(`/games/${id}`),
+  getGameLine: (id: number) => request<GameLine>(`/games/${id}/line`),
 
   importPgn: (pgn: string) =>
     request<{ imported: number; skipped: number; game_ids: number[] }>("/games", {
@@ -573,11 +610,20 @@ export const api = {
 
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: "DELETE" }),
 
-  analysePosition: (fen: string, depth = 20, multipv = 3, engine = getSettings().engine) =>
+  analysePosition: (fen: string, depth = 20, multipv = 3, engine = getSettings().engine, variant: "standard" | "chess960" = "standard") =>
     request<{ job_id: number; status: string; cached: boolean; result: any }>(
       "/analysis/position",
-      { method: "POST", body: JSON.stringify({ fen, depth, multipv, engine }) }
+      { method: "POST", body: JSON.stringify({ fen, depth, multipv, engine, ...(variant === "chess960" ? { variant } : {}) }) }
     ),
+
+  chess960Start: (index: number) => request<Chess960Position>(`/chess960/start?index=${index}`),
+  chess960Move: (fen: string, uci: string) => request<Chess960Position>("/chess960/move", {
+    method: "POST", body: JSON.stringify({ fen, uci }),
+  }),
+  chess960Save: (index: number, moves: string[]) =>
+    request<{ game_id: number }>("/chess960/save", {
+      method: "POST", body: JSON.stringify({ index, moves }),
+    }),
 
   analyseGame: (gameId: number, engine = getSettings().engine, depth = getSettings().depth) =>
     request<{ job_id: number; status: string }>(`/analysis/game/${gameId}?engine=${encodeURIComponent(engine)}&depth=${depth}`, {
@@ -588,6 +634,16 @@ export const api = {
     request<{ job_id: number; status: string; result: any }>(
       `/analysis/jobs/${jobId}`
     ),
+
+  cancelJob: (jobId: number) => request<void>(`/analysis/jobs/${jobId}`, { method: "DELETE" }),
+
+  saveAnalysisSnapshot: (job_id: number, note: string) =>
+    request<AnalysisSnapshot>("/analysis/snapshots", {
+      method: "POST", body: JSON.stringify({ job_id, note }),
+    }),
+
+  analysisSnapshots: (fen: string) =>
+    request<AnalysisSnapshot[]>(`/analysis/snapshots?fen=${encodeURIComponent(fen)}`),
 
   explorer: (
     fen: string,
@@ -627,6 +683,12 @@ export const api = {
     request<Repertoire>("/repertoires", {
       method: "POST",
       body: JSON.stringify({ name, color, pgn }),
+    }),
+
+  repertoireFromGames: (color: "white" | "black", eco: string) =>
+    request<Repertoire>("/repertoires/from-games", {
+      method: "POST",
+      body: JSON.stringify({ color, eco }),
     }),
 
   listRepertoires: () => request<Repertoire[]>("/repertoires"),
@@ -680,11 +742,12 @@ export const api = {
 
   // ---- tactics puzzles ----
 
-  nextPuzzle: (opts?: { theme?: string; rating?: number; mode?: "practice" | "rush" | "clock" }) => {
+  nextPuzzle: (opts?: { theme?: string; rating?: number; mode?: "practice" | "rush" | "clock"; source?: "public" | "mine" }) => {
     const q = new URLSearchParams();
     if (opts?.theme) q.set("theme", opts.theme);
     if (opts?.rating != null) q.set("rating", String(opts.rating));
     if (opts?.mode) q.set("mode", opts.mode);
+    if (opts?.source) q.set("source", opts.source);
     const qs = q.toString();
     return request<Puzzle>(`/puzzles/next${qs ? `?${qs}` : ""}`);
   },

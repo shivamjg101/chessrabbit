@@ -20,11 +20,13 @@ Stockfish is included in the standard container. An optional CPU container build
 - Use profile ids, engine versions, options and network hashes in cache identities. A one-line cached result cannot satisfy a request for several candidate lines.
 - Keep depth, time, batch size and concurrency bounds as resource controls shared by all accounts.
 - Preserve historical billing tables during upgrades; remove their models, routes, secrets and runtime readers.
-- Retain the existing SQL migration history and append migration 016.
+- Retain the existing SQL migration history and append migrations in order; game variants arrive in 019.
+- Persist each game's variant and starting FEN. Chess960 uses its own replay path and `UCI_Chess960`; standard Polyglot opening indexes, cache entries, cards and puzzles do not apply to it.
+- Desktop folder sync writes encrypted snapshots with a local recovery key. It does not merge changes between workspaces.
 
 ## Operational limits
 
-The default engine pool has one process per profile. Long reviews can delay live requests; increase workers to reserve an interactive slot. Queue jobs are consumed with BLPOP and are not durable acknowledged jobs; a worker killed after dequeue can strand a job. A graceful failure is reported to the client, but automatic retry/recovery is future work.
+The worker reserves an interactive consumer so long reviews do not starve live requests. Jobs persist in PostgreSQL; startup recovery requeues unfinished jobs after a worker crash, and cancellation is checked between reviewed positions. A running engine search can finish its current position before a full-game cancellation takes effect.
 
 Depth is not comparable across engines. Lc0 requires compatible weights and may hit its time limit before the requested depth. Neural networks, reference games, puzzles and tablebases are optional separate downloads.
 

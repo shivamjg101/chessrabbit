@@ -148,6 +148,10 @@ def parse_pgn(pgn_text: str) -> list[dict]:
             break
 
         headers = game.headers
+        board = game.board()
+        if game.errors or type(board) is not chess.Board or not board.is_valid():
+            continue  # unsupported variants and malformed move lists
+        variant = "chess960" if board.chess960 else "standard"
         moves = list(game.mainline_moves())
 
         # python-chess yields an empty Game object for junk input rather than
@@ -186,21 +190,42 @@ def parse_pgn(pgn_text: str) -> list[dict]:
                 "termination": classify_termination(headers.get("Termination"), result),
                 "ply_count": len(moves),
                 "movetext": movetext,
+                "variant": variant,
+                "start_fen": board.fen(shredder=True) if variant == "chess960"
+                else (board.fen() if board.fen() != chess.STARTING_FEN else None),
             }
         )
 
     return games
 
 
-def positions_of_game(movetext: str, max_ply: int = MAX_INDEXED_PLY) -> list[tuple[int, int, str]]:
+def game_from_movetext(
+    movetext: str, variant: str = "standard", start_fen: str | None = None,
+) -> chess.pgn.Game:
+    headers = []
+    if variant == "chess960":
+        headers.append('[Variant "Chess960"]')
+    if start_fen:
+        headers.extend(['[SetUp "1"]', f'[FEN "{start_fen}"]'])
+    text = "\n".join(headers) + "\n\n" + movetext if headers else movetext
+    game = chess.pgn.read_game(io.StringIO(text))
+    if game is None or game.errors:
+        raise ValueError("Invalid stored game moves")
+    return game
+
+
+def positions_of_game(
+    movetext: str, max_ply: int = MAX_INDEXED_PLY,
+    variant: str = "standard", start_fen: str | None = None,
+) -> list[tuple[int, int, str]]:
     """
     Replay a game and return (ply, zobrist, move_uci) for the position index.
     The zobrist is of the position BEFORE the move is played.
     """
+    if variant == "chess960":
+        return []  # Polyglot/opening indexes assume standard castling rights.
     out: list[tuple[int, int, str]] = []
-    game = chess.pgn.read_game(io.StringIO(movetext))
-    if game is None:
-        return out
+    game = game_from_movetext(movetext, variant, start_fen)
 
     board = game.board()
     for ply, move in enumerate(game.mainline_moves()):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 
@@ -98,6 +99,7 @@ class ProfileUpdate(BaseModel):
 
 class GameOut(BaseModel):
     id: int
+    variant: Literal["standard", "chess960"] = "standard"
     white: str
     black: str
     white_elo: int | None
@@ -129,6 +131,7 @@ class SearchResults(BaseModel):
 
 class GameDetail(GameOut):
     movetext: str
+    start_fen: str | None = None
     annotations: list[AnnotationOut] = []
 
 
@@ -180,6 +183,7 @@ class AnnotationOut(BaseModel):
 class AnalysePositionRequest(BaseModel):
     engine: str = Field(default="stockfish", pattern=r"^[a-z0-9_-]{1,40}$")
     fen: str = Field(max_length=200)
+    variant: Literal["standard", "chess960"] = "standard"
     depth: int = Field(default=20, ge=1, le=40)
     multipv: int = Field(default=1, ge=1, le=10)
 

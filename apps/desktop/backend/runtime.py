@@ -38,19 +38,28 @@ async def run(resources: Path, data: Path):
     stockfish = resources / "runtime" / "stockfish" / "stockfish-windows-x86-64-universal.exe"
     profiles = [p for p in profiles if p["id"] != "stockfish"]
     write_json(engine_config, [{"id": "stockfish", "name": "Stockfish", "binary": str(stockfish)}, *profiles])
+    tablebase_config = data / "tablebases.json"
+    tablebases = json.loads(tablebase_config.read_text(encoding="utf-8")) if tablebase_config.exists() else {}
     os.environ.update({
         "DATABASE_URL": database.dsn.replace("postgresql://", "postgresql+asyncpg://", 1),
         "APP_BASE_URL": origin, "LOCAL_MODE": "true", "ENVIRONMENT": "desktop",
         "JWT_SECRET": database.config["jwt_secret"], "ENGINES_CONFIG": str(engine_config),
         "ENGINE_WORKERS": "1", "ENGINE_THREADS_PER_JOB": "2", "ENGINE_HASH_MB": "64",
+        "SYZYGY_PATH": tablebases.get("path", ""),
     })
     token = os.environ.pop("CHESSRABBIT_CONTROL_TOKEN", "")
     if len(token) < 32:
         raise RuntimeError("Desktop control token is missing")
     try:
         await asyncio.to_thread(database.start, resources / "migrations")
+        profiles = json.loads(engine_config.read_text(encoding="utf-8"))
+        profiles = [p for p in profiles if p["id"] != "stockfish"]
+        write_json(engine_config, [{"id": "stockfish", "name": "Stockfish", "binary": str(stockfish)}, *profiles])
+        tablebases = json.loads(tablebase_config.read_text(encoding="utf-8")) if tablebase_config.exists() else {}
+        os.environ["SYZYGY_PATH"] = tablebases.get("path", "")
         import fakeredis
         from fastapi import FastAPI, HTTPException, Request
+        from fastapi.responses import RedirectResponse
         from fastapi.staticfiles import StaticFiles
         import uvicorn
         from app.core.redis_client import configure_redis
@@ -98,6 +107,58 @@ async def run(resources: Path, data: Path):
                 return await engines.add(profile)
             except Exception as exc:
                 raise HTTPException(400, str(exc)) from exc
+
+        @application.post("/desktop/tablebases")
+        async def set_tablebases(request: Request):
+            authorize(request)
+            payload = await request.json()
+            path = payload.get("path") if isinstance(payload, dict) else None
+            if not isinstance(path, str):
+                raise HTTPException(400, "Choose a Syzygy tablebase folder")
+            from app.core.config import settings
+            from app.routers.analysis import _tablebase
+            if path:
+                folder = Path(path).resolve()
+                if not folder.is_dir():
+                    raise HTTPException(400, "Tablebase folder does not exist")
+                files = [p for p in folder.iterdir() if p.suffix.lower() in (".rtbw", ".rtbz")]
+                if not files:
+                    raise HTTPException(400, "No .rtbw or .rtbz Syzygy files in that folder")
+                import chess.syzygy
+                try:
+                    with chess.syzygy.open_tablebase(str(folder)):
+                        pass
+                except (OSError, ValueError) as exc:
+                    raise HTTPException(400, "Could not open Syzygy tablebases") from exc
+                path = str(folder)
+            else:
+                files = []
+            previous = _tablebase() if settings.SYZYGY_PATH else None
+            _tablebase.cache_clear()
+            if previous is not None:
+                previous.close()
+            settings.SYZYGY_PATH = path
+            write_json(tablebase_config, {"path": path})
+            return {"path": path, "files": len(files)}
+
+        @application.post("/desktop/backup")
+        async def make_backup(request: Request):
+            authorize(request)
+            try:
+                dump = await asyncio.to_thread(database.dump)
+            except Exception as exc:
+                logging.exception("Database backup failed")
+                raise HTTPException(500, "Could not create a database snapshot") from exc
+            return {"dump": str(dump)}
+
+        @application.get("/")
+        @application.get("/login/")
+        @application.get("/register/")
+        @application.get("/forgot/")
+        @application.get("/reset/")
+        @application.get("/verify/")
+        async def desktop_workspace():
+            return RedirectResponse("/app/", status_code=302)
 
         application.mount("/api", api)
         application.mount("/", StaticFiles(directory=resources / "web", html=True))

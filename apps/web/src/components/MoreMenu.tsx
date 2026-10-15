@@ -63,6 +63,11 @@ const GROUPS: {
         label: "Opponent prep",
         blurb: "Scout what your next opponent plays",
       },
+      {
+        href: "/chess960",
+        label: "Chess960",
+        blurb: "Play and analyse shuffled starting positions",
+      },
     ],
   },
   {

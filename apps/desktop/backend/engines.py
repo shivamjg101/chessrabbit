@@ -20,6 +20,7 @@ class DesktopEngines:
         self.catalog = []
         self.tasks = {}
         self.heartbeat = None
+        self.reconciliation = None
         self.lock = asyncio.Lock()
 
     def consume(self, engine_id, pool):
@@ -31,7 +32,9 @@ class DesktopEngines:
         worker.shutdown = asyncio.Event()
         self.pools, self.catalog = await start_profiles(1, worker.THREADS, worker.HASH_MB)
         await self.redis.set(CATALOG_KEY, json.dumps(self.catalog), ex=90)
+        await worker.recover_jobs(self.redis, set(self.pools))
         self.heartbeat = asyncio.create_task(worker.advertise(self.redis, self.catalog))
+        self.reconciliation = asyncio.create_task(worker.reconcile_jobs(self.redis, self.pools))
         for engine_id, pool in self.pools.items():
             self.consume(engine_id, pool)
         if "stockfish" not in self.pools:
@@ -74,6 +77,8 @@ class DesktopEngines:
         tasks = [t for group in self.tasks.values() for t in group]
         if self.heartbeat:
             tasks.append(self.heartbeat)
+        if self.reconciliation:
+            tasks.append(self.reconciliation)
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)

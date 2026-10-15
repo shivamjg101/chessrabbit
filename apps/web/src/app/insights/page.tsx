@@ -251,6 +251,24 @@ export default function InsightsPage() {
           left for the reader to work out by scanning six of them. */}
       {data && <FindingsBand data={data} onJump={setSection} />}
 
+      {subject.kind === "me" && data && data.practice_games && data.practice_games.length > 0 && (
+        <section className="mx-auto max-w-6xl px-3 pt-5">
+          <h2 className="font-display text-xl">Practise positions from your games</h2>
+          <p className="mt-1 text-sm text-muted">Guess the better move before revealing the engine review.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {data.practice_games.map((game) => (
+              <Link key={game.id} href={`/train/review?game=${game.id}`} className="card p-3 hover:border-brass/50">
+                <p className="truncate text-sm font-medium">{game.white} vs {game.black}</p>
+                <p className="mt-1 truncate text-xs text-muted">
+                  {game.opening || game.played_on || "Reviewed game"} · {game.critical_moves} critical moves
+                </p>
+                <span className="mt-2 inline-block text-xs text-brassLit">Test yourself →</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Rail first in the source and on the left at desktop width: it is this
           page's primary navigation, and it used to sit on the right where it
           was read last. */}

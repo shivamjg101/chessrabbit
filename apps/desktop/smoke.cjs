@@ -2,6 +2,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const backup = require("./backup.cjs");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -28,7 +29,23 @@ exports.run = async function run(origin, data, control) {
   assert.equal(me.local_mode, true);
   assert(!("plan" in me));
   assert((await request("/engines")).some((engine) => engine.id === "stockfish" && engine.available));
+  // These reads exercise migrations 017 and 018 on both fresh and upgraded databases.
+  assert(Array.isArray(await request("/puzzles/themes")));
+  assert(Array.isArray(await request("/analysis/snapshots")));
   const marker = path.join(data, "smoke-game.json");
+  const restoreSmoke = process.argv.includes("--smoke-backup-restore");
+  const restoreStateFile = path.join(data, "smoke-restore.json");
+  const restoreState = restoreSmoke && fs.existsSync(restoreStateFile)
+    ? JSON.parse(fs.readFileSync(restoreStateFile, "utf8")) : null;
+  if (restoreState?.phase === "await_restore") {
+    assert.equal((await request(`/games/${restoreState.original}`)).id, restoreState.original);
+    const removed = await fetch(`${origin}/api/games/${restoreState.extra}`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000),
+    });
+    assert.equal(removed.status, 404, "The post-backup game survived restore");
+    fs.writeFileSync(restoreStateFile, JSON.stringify({ ...restoreState, phase: "verified" }));
+    console.log("Encrypted snapshot restored across launches; post-backup game is absent");
+  }
   if (fs.existsSync(marker)) {
     const previous = JSON.parse(fs.readFileSync(marker, "utf8"));
     assert.equal((await request(`/games/${previous.game}`)).id, previous.game);
@@ -74,4 +91,21 @@ exports.run = async function run(origin, data, control) {
       if (message.type === "error") { clearTimeout(timer); ws.close(); reject(new Error(JSON.stringify(message))); }
     };
   });
+  if (restoreSmoke && !restoreState) {
+    const dump = (await control("backup", undefined, 660000)).dump;
+    assert.equal(path.dirname(path.resolve(dump)), path.resolve(data));
+    const destination = path.join(data, "smoke-restore.crbackup");
+    try {
+      await backup.encryptDump(dump, destination, backup.localKey(path.dirname(data)),
+        { format: 1, tablebases: {} });
+    } finally { await fs.promises.unlink(dump).catch(() => {}); }
+    fs.writeFileSync(restoreStateFile, JSON.stringify({ phase: "snapshot", original: JSON.parse(fs.readFileSync(marker, "utf8")).game }));
+    console.log("Encrypted restore smoke: snapshot saved; run again with the same data directory");
+  } else if (restoreSmoke && restoreState.phase === "snapshot") {
+    const extra = (await request("/games", { pgn: '[White "After backup"]\n[Black "Restore smoke"]\n\n1. d4 d5 *' }, "POST")).game_ids[0];
+    await backup.stageRestore(path.join(data, "smoke-restore.crbackup"),
+      backup.localKey(path.dirname(data)), data);
+    fs.writeFileSync(restoreStateFile, JSON.stringify({ ...restoreState, phase: "await_restore", extra }));
+    console.log("Encrypted restore smoke: restore staged; run once more to verify");
+  }
 };

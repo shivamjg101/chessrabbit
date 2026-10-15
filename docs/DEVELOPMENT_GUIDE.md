@@ -28,3 +28,5 @@ Set CHESSRABBIT_TEST_DB to a migrated PostgreSQL test database to include schema
 Engine tests exercise UCI handshakes, Lc0-style options, subprocess exit errors, registry availability and network cache identities with a deterministic test subprocess. Actual Stockfish smoke testing runs in CI. A real Lc0/network deployment must also be verified on the target CPU/GPU.
 
 Use `python scripts/smoke_local.py` against a running default Docker stack to verify personal session bootstrap, engine availability, position analysis and game reviews.
+
+For a packaged Windows build, launch it three times with `--smoke-test --smoke-backup-restore` using the same disposable user-data directory. The first run saves an encrypted database snapshot, the second adds a game and stages restore, and the third verifies that the original game survived while the post-snapshot game is gone. Each run must print `CHESSRABBIT_SMOKE_PASSED`. This scenario needs the packaged PostgreSQL and Stockfish assets; it cannot run from the source tree alone.

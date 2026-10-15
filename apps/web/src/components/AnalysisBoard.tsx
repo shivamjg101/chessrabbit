@@ -143,6 +143,8 @@ interface Props {
   initialPgn?: string;
   gameLabel?: string;
   gameId?: number;
+  onOpenGames?: () => void;
+  onImportPgn?: () => void;
   initialAnnotations?: Annotation[];
   /** Ply count from the server's parse — the fallback alignment check. */
   expectedPlies?: number;
@@ -156,6 +158,8 @@ export default function AnalysisBoard({
   initialPgn,
   gameLabel,
   gameId,
+  onOpenGames,
+  onImportPgn,
   initialAnnotations,
   expectedPlies,
   players,
@@ -907,6 +911,12 @@ export default function AnalysisBoard({
               hasReview={hasReview}
               canRun={gameId != null}
             />
+            {!initialPgn && gameId == null && history.length === 0 && onOpenGames && onImportPgn && (
+              <div className="grid grid-cols-2 gap-2">
+                <button className="btn-primary" onClick={onOpenGames}>Open games</button>
+                <button className="btn" onClick={onImportPgn}>Import PGN</button>
+              </div>
+            )}
             <BlunderIndex
               annotations={[...annByPly.values()]}
               cursor={mt.cursorPly}
@@ -983,6 +993,7 @@ export default function AnalysisBoard({
           )}
           {tab === "report" && (
             <ReviewPanel
+              gameId={gameId}
               history={history}
               annotations={[...annByPly.values()]}
               summary={reviewSummary}
@@ -1040,6 +1051,10 @@ export default function AnalysisBoard({
             </div>
           )}
           {tab === "engine" && (
+            <div className="space-y-3">
+            <Link className="btn block text-center text-xs" href={`/compare?fen=${encodeURIComponent(fen)}`}>
+              Compare engines on this position
+            </Link>
             <EnginePane
               // Only the lines that belong to the position on the board. In
               // the moment after a move they still describe the previous one,
@@ -1055,6 +1070,7 @@ export default function AnalysisBoard({
               onToggleAuto={(autoAnalyse) => updateSettings({ autoAnalyse })}
               onPlayLine={(sans, evalCp) => mt.playLine(sans, { evalCp })}
             />
+            </div>
           )}
           {tab === "book" && (
             <ExplorerPane

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import DesktopAuthGate from "@/components/DesktopAuthGate";
 import "./globals.css";
 
 // Bundled fonts remove Google Fonts requests from builds and local installs.
@@ -43,6 +44,7 @@ const plexMono = localFont({
 });
 
 export const metadata: Metadata = {
+  icons: { icon: "/chessrabbit-mark.svg" },
   title: "ChessRabbit — Opening Repertoire Trainer",
   description:
     "Drill your openings on a spaced-repetition schedule, find the blunders in your own games, and scout what your next opponent actually plays.",
@@ -65,7 +67,7 @@ export default function RootLayout({
       lang="en"
       className={`h-full ${archivo.variable} ${instrumentSerif.variable} ${plexMono.variable}`}
     >
-      <body className="min-h-full text-ink antialiased font-sans">{children}</body>
+      <body className="min-h-full text-ink antialiased font-sans"><DesktopAuthGate>{children}</DesktopAuthGate></body>
     </html>
   );
 }

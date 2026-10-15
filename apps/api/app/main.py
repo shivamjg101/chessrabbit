@@ -28,6 +28,7 @@ from app.routers import (
     admin,
     analysis,
     auth,
+    chess960,
     engines,
     explorer,
     games,
@@ -283,6 +284,7 @@ app.include_router(accounts.router)
 app.include_router(games.router)
 app.include_router(studies.router)
 app.include_router(analysis.router)
+app.include_router(chess960.router)
 app.include_router(explorer.router)
 app.include_router(insights.router)
 app.include_router(training.router)

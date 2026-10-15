@@ -13,6 +13,7 @@
  */
 
 import { useMemo, useRef } from "react";
+import Link from "next/link";
 import { Annotation, Classification, ReviewSummary } from "@/lib/api";
 import { CLASS_META, CLASS_ORDER } from "@/lib/classification";
 
@@ -50,6 +51,7 @@ export interface LiveCallout {
 }
 
 interface Props {
+  gameId?: number;
   history: string[];
   annotations: Annotation[];
   summary: ReviewSummary | null;
@@ -61,6 +63,7 @@ interface Props {
 }
 
 export default function ReviewPanel({
+  gameId,
   history,
   annotations,
   summary,
@@ -154,6 +157,11 @@ export default function ReviewPanel({
             "Review this game"
           )}
         </button>
+      )}
+      {gameId != null && hasReview && (
+        <Link className="btn-primary block w-full text-center text-sm" href={`/train/review?game=${gameId}`}>
+          Test yourself on this game
+        </Link>
       )}
 
       {/* ---------- Accuracy ---------- */}

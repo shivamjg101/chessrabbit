@@ -1,6 +1,6 @@
 {
   "name": "chessrabbit-desktop",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Free, open-source chess analysis and training on your computer",
   "author": "shivamjg101",
   "license": "GPL-3.0",
@@ -18,7 +18,7 @@
     "appId": "com.chessrabbit.desktop",
     "productName": "ChessRabbit",
     "directories": { "output": "../../dist/windows" },
-    "files": ["main.cjs", "smoke.cjs", "loading.html", "package.json"],
+    "files": ["main.cjs", "backup.cjs", "smoke.cjs", "loading.html", "app-lock.cjs", "app-lock.html", "app-lock-ui.js", "preload.cjs", "package.json"],
     "extraResources": [
       { "from": "../../dist/desktop-backend/ChessRabbitBackend", "to": "backend" },
       { "from": "../../dist/desktop-assets", "to": "runtime" },
@@ -33,7 +33,7 @@
       { "from": "../web/src/app/fonts", "to": "licenses/fonts", "filter": ["*.txt", "*.md"] }
     ],
     "electronLanguages": ["en-US"],
-    "win": { "target": "nsis", "requestedExecutionLevel": "asInvoker" },
+    "win": { "target": "nsis", "icon": "icon.ico", "requestedExecutionLevel": "asInvoker" },
     "nsis": {
       "artifactName": "ChessRabbit-Setup.exe",
       "oneClick": false,

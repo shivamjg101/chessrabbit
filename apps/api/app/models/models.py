@@ -131,6 +131,8 @@ class Game(Base):
     opening: Mapped[str | None] = mapped_column(Text, nullable=True)
     ply_count: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
     movetext: Mapped[str] = mapped_column(Text, nullable=False)
+    variant: Mapped[str] = mapped_column(Text, default="standard", nullable=False)
+    start_fen: Mapped[str | None] = mapped_column(Text, nullable=True)
     external_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Insights metadata (migration 010). All nullable: games imported before
     # 010, and reference games, simply do not participate in those charts.
@@ -216,6 +218,22 @@ class Annotation(Base):
     review: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (UniqueConstraint("game_id", "user_id", "ply"),)
+
+
+class AnalysisSnapshot(Base):
+    __tablename__ = "analysis_snapshots"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"))
+    job_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("analysis_jobs.id", ondelete="CASCADE"), unique=True)
+    fen: Mapped[str] = mapped_column(Text, nullable=False)
+    engine_id: Mapped[str] = mapped_column(Text, nullable=False)
+    engine_version: Mapped[str] = mapped_column(Text, nullable=False)
+    cache_key: Mapped[str] = mapped_column(Text, nullable=False)
+    depth: Mapped[int] = mapped_column(Integer, nullable=False)
+    lines: Mapped[list] = mapped_column(JSONB, nullable=False)
+    note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Collection(Base):
@@ -333,6 +351,9 @@ class Puzzle(Base):
     __tablename__ = "puzzles"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    owner_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
     lichess_id: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     fen: Mapped[str] = mapped_column(Text, nullable=False)
     moves: Mapped[str] = mapped_column(Text, nullable=False)

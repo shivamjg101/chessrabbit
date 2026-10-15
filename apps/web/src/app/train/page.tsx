@@ -1,15 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { useBoardTheme } from "@/lib/boardTheme";
 import { useClickToMove } from "@/hooks/useClickToMove";
 import RecallRule from "@/components/RecallRule";
 import {
-  api, ApiError, Opening, Repertoire, TrainingCard, TrainingResult,
+  api, ApiError, Opening, OpeningRow, Repertoire, TrainingCard, TrainingResult,
 } from "@/lib/api";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -60,7 +61,15 @@ export default function TrainPage() {
   const [error, setError] = useState<string | null>(null);
   const [openings, setOpenings] = useState<Opening[]>([]);
   const [showOpenings, setShowOpenings] = useState(false);
+  const [openingsLoading, setOpeningsLoading] = useState(false);
+  const [openingsFailed, setOpeningsFailed] = useState(false);
   const [addingOpening, setAddingOpening] = useState<string | null>(null);
+  const [showMine, setShowMine] = useState(false);
+  const [ownOpenings, setOwnOpenings] = useState<(OpeningRow & { color: "white" | "black" })[]>([]);
+  const [loadingMine, setLoadingMine] = useState(false);
+  const [syncingBlunders, setSyncingBlunders] = useState(false);
+  const [blunderNotice, setBlunderNotice] = useState<string | null>(null);
+  const addLinesRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -144,21 +153,18 @@ export default function TrainPage() {
     ];
   }, [feedback]);
 
-  /**
-   * Drop a repertoire from the list now, and put it back if the server says no.
-   *
-   * The old handler waited for the DELETE and then re-fetched the repertoire
-   * list AND the due queue, so removing one line cost two round trips before
-   * the row disappeared. The queue is left alone here: cards from a deleted
-   * repertoire stop being served on the next refresh, and pulling the rug out
-   * from under the card on screen would lose an answer in progress.
-   */
   async function removeRepertoire(rep: Repertoire) {
+    if (!window.confirm(`Delete "${rep.name}" and its ${rep.card_count} training cards? This cannot be undone.`)) return;
     const before = reps;
     setReps((r) => r.filter((x) => x.id !== rep.id));
     setError(null);
     try {
       await api.deleteRepertoire(rep.id);
+      if (card?.repertoire_id === rep.id) {
+        setCard(null);
+        setFeedback(null);
+      }
+      await refresh();
     } catch (err) {
       setReps(before);
       setError(
@@ -193,14 +199,47 @@ export default function TrainPage() {
     }
   }
 
+  function loadOpenings() {
+    setOpeningsLoading(true);
+    setOpeningsFailed(false);
+    api.listOpenings()
+      .then(setOpenings)
+      .catch(() => setOpeningsFailed(true))
+      .finally(() => setOpeningsLoading(false));
+  }
+
   function toggleOpenings() {
+    if (!showOpenings && openings.length === 0 && !openingsLoading) loadOpenings();
     setShowOpenings((s) => !s);
     setCreating(false);
-    if (openings.length === 0) {
-      api
-        .listOpenings()
-        .then(setOpenings)
-        .catch(() => setError("The opening list did not load. Reload the page to try again."));
+    setShowMine(false);
+  }
+
+  function browseOpeningsFromEmpty() {
+    if (!showOpenings) toggleOpenings();
+    requestAnimationFrame(() => {
+      addLinesRef.current?.focus({ preventScroll: true });
+      addLinesRef.current?.scrollIntoView({ block: "start" });
+    });
+  }
+
+  async function importBlunders() {
+    if (syncingBlunders) return;
+    setSyncingBlunders(true);
+    setBlunderNotice(null);
+    setError(null);
+    try {
+      const result = await api.syncBlunders();
+      await refresh();
+      setBlunderNotice(result.cards_created > 0
+        ? `${result.cards_created} new training card${result.cards_created === 1 ? "" : "s"} added.`
+        : result.mistakes_found > 0
+          ? "No new cards; those mistakes are already in your repertoire."
+          : "No analysed mistakes yet. Review a game on the board, then try again.");
+    } catch {
+      setError("Blunder import failed. Try again in a moment.");
+    } finally {
+      setSyncingBlunders(false);
     }
   }
 
@@ -220,6 +259,39 @@ export default function TrainPage() {
     }
   }
 
+  function toggleMine() {
+    setShowMine((show) => !show);
+    setShowOpenings(false);
+    setCreating(false);
+    if (ownOpenings.length === 0) {
+      setLoadingMine(true);
+      api.insights().then((data) => {
+        const rows = [
+          ...data.openings.white.map((row) => ({ ...row, color: "white" as const })),
+          ...data.openings.black.map((row) => ({ ...row, color: "black" as const })),
+        ].filter((row) => row.eco && /^[A-E][0-9]{2}$/.test(row.eco) && row.games >= 3);
+        rows.sort((a, b) => (a.wins + a.draws / 2) / a.games - (b.wins + b.draws / 2) / b.games);
+        setOwnOpenings(rows.slice(0, 12));
+      }).catch(() => setError("Could not load openings from your games."))
+        .finally(() => setLoadingMine(false));
+    }
+  }
+
+  async function buildFromGames(row: OpeningRow & { color: "white" | "black" }) {
+    if (!row.eco) return;
+    setAddingOpening(row.eco + row.color);
+    setError(null);
+    try {
+      await api.repertoireFromGames(row.color, row.eco);
+      setShowMine(false);
+      refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not build this opening drill.");
+    } finally {
+      setAddingOpening(null);
+    }
+  }
+
   const dueTotal = reps.reduce((n, r) => n + r.due_count, 0);
   const answered = session.right + session.wrong;
 
@@ -228,17 +300,18 @@ export default function TrainPage() {
       {/* Chrome: one line, one brass hairline, and the only number that
           matters pushed to the far end. */}
       <header className="sticky top-0 z-30 border-b border-brass/25 bg-night/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-5 px-5 py-3">
-          <Link href="/app" className="font-display text-lg text-ink">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3">
+          <Link href="/app" className="inline-flex items-center gap-2 font-display text-lg text-ink">
+            <Image src="/chessrabbit-mark.svg" alt="" width={26} height={26} aria-hidden="true" />
             ChessRabbit
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="order-2 flex w-full items-center justify-between gap-1 text-sm sm:order-none sm:w-auto">
             <Link href="/app" className="seg-item">Board</Link>
             <span className="seg-item seg-item-on">Train</span>
             <Link href="/prep" className="seg-item">Prep</Link>
             <Link href="/insights" className="seg-item">Insights</Link>
           </nav>
-          <span className="ml-auto flex items-baseline gap-2">
+          <span className="order-1 ml-auto flex items-baseline gap-2 sm:order-none">
             <span className="font-display text-2xl leading-none text-brassLit">
               {dueTotal}
             </span>
@@ -266,7 +339,7 @@ export default function TrainPage() {
 
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
           {/* ---- The question ---- */}
-          <section className="flex-1">
+          <section className="min-w-0 flex-1">
             {card ? (
               <>
                 <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -278,7 +351,7 @@ export default function TrainPage() {
                   </span>
                 </div>
 
-                <div className="board-frame w-[min(92vw,460px)]">
+                <div className="board-frame w-full max-w-[460px]">
                   <Chessboard
                     position={answeredFen ?? card.fen}
                     onPieceDrop={onDrop}
@@ -292,8 +365,8 @@ export default function TrainPage() {
                   />
                 </div>
 
-                <div className="mt-5 w-[min(92vw,460px)]">
-                  <p className="text-[15px] text-ink">
+                <div className="mt-5 w-full max-w-[460px]">
+                  <p className="text-[15px] text-ink" role="status" aria-live="polite">
                     {feedback ? (
                       feedback.correct ? (
                         <>
@@ -346,7 +419,7 @@ export default function TrainPage() {
                       it&apos;s your move into a card. Variations in parentheses
                       become the branches your opponent gets to choose.
                     </p>
-                    <button className="btn-primary" onClick={toggleOpenings}>
+                    <button className="btn-primary" onClick={browseOpeningsFromEmpty}>
                       Browse openings
                     </button>
                   </>
@@ -397,8 +470,9 @@ export default function TrainPage() {
                         {r.due_count}
                       </span>
                       <button
-                        className="font-mono text-xs text-faint opacity-0 transition-opacity
-                                   hover:text-bad focus-visible:opacity-100 group-hover:opacity-100"
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded font-mono text-sm text-faint
+                                   opacity-100 transition-opacity hover:bg-bad/10 hover:text-bad
+                                   lg:opacity-0 lg:focus-visible:opacity-100 lg:group-hover:opacity-100"
                         onClick={() => removeRepertoire(r)}
                         title={`Delete ${r.name}`}
                         aria-label={`Delete ${r.name}`}
@@ -431,9 +505,12 @@ export default function TrainPage() {
               </div>
             )}
 
-            <div>
+            <div ref={addLinesRef} tabIndex={-1} className="scroll-mt-24">
               <p className="rule-label mb-3">Add lines</p>
               <div className="flex flex-wrap gap-2">
+                <button className="btn" onClick={toggleMine}>
+                  {showMine ? "Close my openings" : "From my games"}
+                </button>
                 <button className="btn" onClick={toggleOpenings}>
                   {showOpenings ? "Close openings" : "Browse openings"}
                 </button>
@@ -442,6 +519,7 @@ export default function TrainPage() {
                   onClick={() => {
                     setCreating((c) => !c);
                     setShowOpenings(false);
+                    setShowMine(false);
                   }}
                 >
                   {creating ? "Cancel" : "Paste a PGN"}
@@ -449,26 +527,36 @@ export default function TrainPage() {
                 <button
                   className="btn"
                   title="Turn engine-tagged mistakes from your analysed games into cards"
-                  onClick={() =>
-                    api
-                      .syncBlunders()
-                      .then((r) => {
-                        setError(null);
-                        refresh();
-                        if (r.cards_created === 0 && r.mistakes_found === 0)
-                          setError(
-                            "No analysed mistakes to import. Run a full-game analysis on the board first, then sync again."
-                          );
-                      })
-                      .catch(() =>
-                        setError("Blunder import failed. Try again in a moment.")
-                      )
-                  }
+                  onClick={importBlunders}
+                  disabled={syncingBlunders}
                 >
-                  Import blunders
+                  {syncingBlunders ? "Importing…" : "Import blunders"}
                 </button>
               </div>
+              {blunderNotice && <p className="mt-2 text-xs text-muted" role="status">{blunderNotice}</p>}
             </div>
+
+            {showMine && (
+              <div className="card max-h-[28rem] space-y-3 overflow-auto p-3">
+                <p className="text-xs text-muted">
+                  Your lowest-scoring openings come first. Drills use your most-played
+                  moves and up to three common opponent replies, not engine recommendations.
+                </p>
+                {loadingMine && <p className="text-xs text-faint">Reading your games…</p>}
+                {!loadingMine && ownOpenings.length === 0 && <p className="text-xs text-faint">No opening with at least three games and an ECO code yet.</p>}
+                {ownOpenings.map((row) => (
+                  <div key={`${row.color}-${row.eco}-${row.name}`} className="rounded p-2 hover:bg-raise/40">
+                    <p className="text-sm font-medium">{row.name} <span className="text-xs text-muted">({row.eco})</span></p>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-muted">
+                      <span>{row.color} · {row.games} games · {Math.round(100 * (row.wins + row.draws / 2) / row.games)}% score</span>
+                      <button className="btn ml-auto px-2 py-1 text-xs" disabled={addingOpening !== null} onClick={() => buildFromGames(row)}>
+                        {addingOpening === row.eco + row.color ? "Building…" : "Build drills"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {showOpenings && (
               <div className="card max-h-[28rem] space-y-4 overflow-auto p-3">
@@ -476,8 +564,15 @@ export default function TrainPage() {
                   Pick an opening to drill. It becomes a repertoire scheduled
                   like any other.
                 </p>
-                {openings.length === 0 && (
-                  <p className="font-mono text-xs text-faint">Loading…</p>
+                {openingsLoading && <p className="font-mono text-xs text-faint" role="status">Loading…</p>}
+                {!openingsLoading && openingsFailed && (
+                  <div className="text-xs text-muted" role="alert">
+                    <p>The opening list did not load.</p>
+                    <button className="btn mt-2" onClick={loadOpenings}>Retry</button>
+                  </div>
+                )}
+                {!openingsLoading && !openingsFailed && openings.length === 0 && (
+                  <p className="text-xs text-muted">No suggested openings are available right now.</p>
                 )}
                 {(["white", "black"] as const).map((side) => {
                   const list = openings.filter((o) => o.color === side);

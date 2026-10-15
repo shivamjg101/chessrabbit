@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import SiteFooter from "@/components/SiteFooter";
 import RecallRule from "@/components/RecallRule";
 import DonateSection from "@/components/DonateSection";
@@ -113,7 +114,10 @@ export default function LandingPage() {
     <>
       <header className="border-b border-brass/25">
         <div className="mx-auto flex max-w-6xl items-center gap-5 px-5 py-3">
-          <span className="font-display text-lg text-ink">ChessRabbit</span>
+          <span className="inline-flex items-center gap-2 font-display text-lg text-ink">
+            <Image src="/chessrabbit-mark.svg" alt="" width={26} height={26} aria-hidden="true" />
+            ChessRabbit
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <Link href="/login" className="btn">Sign in</Link>
             <Link href="/download" className="btn-primary">Download</Link>
