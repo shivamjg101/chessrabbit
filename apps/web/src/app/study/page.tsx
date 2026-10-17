@@ -99,7 +99,7 @@ export default function StudiesPage() {
         </nav>
       </header>
 
-      <div className="mb-6 flex flex-wrap items-end gap-2 rounded-xl border border-ivory/5 bg-panelAlt/60 p-4">
+      <div className="mb-6 flex flex-wrap items-end gap-2 rounded-xl border border-line/35 bg-panelAlt/60 p-4">
         <div className="min-w-[200px] flex-1">
           <label className="mb-1 block text-xs text-muted" htmlFor="study-name">
             New study
@@ -128,7 +128,7 @@ export default function StudiesPage() {
       {studies === null ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : studies.length === 0 ? (
-        <div className="rounded-xl border border-ivory/5 bg-panelAlt/60 p-8 text-center">
+        <div className="rounded-xl border border-line/35 bg-panelAlt/60 p-8 text-center">
           <p className="font-display text-xl">Nothing here yet</p>
           <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted">
             A study is a board that keeps what you found on it. Play the
@@ -164,7 +164,7 @@ function StudyGroup({
         {studies.map((s) => (
           <li
             key={s.id}
-            className="flex items-center gap-3 rounded-xl border border-ivory/5 bg-panelAlt/60 p-3"
+            className="flex items-center gap-3 rounded-xl border border-line/35 bg-panelAlt/60 p-3"
           >
             <Link href={`/study/view/?id=${s.id}`} className="min-w-0 flex-1">
               <p className="truncate font-medium">{s.name}</p>
@@ -178,7 +178,7 @@ function StudyGroup({
               <button
                 onClick={() => onDelete(s)}
                 title={`Delete ${s.name}`}
-                className="shrink-0 rounded border border-ivory/10 px-2 py-1 text-xs text-muted
+                className="shrink-0 rounded border border-line/35 px-2 py-1 text-xs text-muted
                            hover:bg-bad/20 hover:text-bad"
               >
                 Delete

@@ -51,9 +51,8 @@ _BREAKERS = {
     for platform in PLATFORMS
 }
 
-# Standard chess only: variant movetext (atomic, crazyhouse, ...) would poison
-# the position index, which assumes normal rules.
-_LICHESS_PERFS = "ultraBullet,bullet,blitz,rapid,classical,correspondence"
+# Chess960 is stored without the standard opening index; other variants are rejected.
+_LICHESS_PERFS = "ultraBullet,bullet,blitz,rapid,classical,correspondence,chess960"
 
 
 class PlatformError(Exception):
@@ -210,7 +209,7 @@ async def _fetch_chesscom(
                 if end_time <= since_epoch:
                     continue
                 month_all_old = False
-                if game.get("rules") != "chess" or not game.get("pgn"):
+                if game.get("rules") not in ("chess", "chess960") or not game.get("pgn"):
                     continue
                 parsed = parse_pgn(game["pgn"])
                 if parsed:
@@ -279,7 +278,9 @@ async def _import_entries(
             duplicates += 1
             continue
         try:
-            positions = positions_of_game(parsed["movetext"])
+            positions = positions_of_game(
+                parsed["movetext"], variant=parsed["variant"], start_fen=parsed["start_fen"]
+            )
             rows.append({
                 "owner_id": user.id,
                 "source": source,

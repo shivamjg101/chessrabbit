@@ -10,7 +10,9 @@ from functools import lru_cache
 import chess
 import chess.syzygy
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import func, insert, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.chess_utils import validate_fen, zobrist_of
@@ -20,7 +22,7 @@ from app.core.deps import check_and_increment_usage, get_current_user
 from app.core.engines import resolve_engine
 from app.core.ratelimit import user_rate_limit
 from app.core.redis_client import get_redis
-from app.models import AnalysisCache, AnalysisJob, Game, User
+from app.models import AnalysisCache, AnalysisJob, AnalysisSnapshot, Game, User
 from app.schemas import AnalysePositionRequest, AnalysisJobOut
 
 log = logging.getLogger(__name__)
@@ -49,6 +51,59 @@ def _tablebase() -> chess.syzygy.Tablebase | None:
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
+class SaveSnapshot(BaseModel):
+    job_id: int = Field(gt=0)
+    note: str = Field(default="", max_length=2000)
+
+
+def _snapshot_out(row: AnalysisSnapshot) -> dict:
+    return {
+        "id": row.id, "fen": row.fen, "engine_id": row.engine_id,
+        "engine_version": row.engine_version,
+        "engine_cache_key": row.cache_key, "depth": row.depth,
+        "lines": row.lines, "note": row.note,
+        "created_at": row.created_at.isoformat(),
+    }
+
+
+@router.post("/snapshots")
+async def save_snapshot(
+    payload: SaveSnapshot,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    job = await db.get(AnalysisJob, payload.job_id)
+    if job is None or job.user_id != user.id or job.kind != "position":
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Analysis job not found"})
+    result = job.result or {}
+    if job.status != "done" or not result.get("lines") or not result.get("engine_cache_key"):
+        raise HTTPException(status_code=409, detail={"code": "not_ready", "message": "A completed position analysis with provenance is required"})
+    await db.execute(
+        pg_insert(AnalysisSnapshot).values(
+            user_id=user.id, job_id=job.id, fen=job.params["fen"],
+            engine_id=job.params["engine"], engine_version=result.get("engine_version") or "unknown",
+            cache_key=result["engine_cache_key"],
+            depth=result["depth"], lines=result["lines"], note=payload.note.strip(),
+        ).on_conflict_do_nothing(index_elements=["job_id"])
+    )
+    await db.commit()
+    row = (await db.execute(select(AnalysisSnapshot).where(AnalysisSnapshot.job_id == job.id))).scalar_one()
+    return _snapshot_out(row)
+
+
+@router.get("/snapshots")
+async def list_snapshots(
+    fen: str | None = Query(default=None, max_length=200),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(AnalysisSnapshot).where(AnalysisSnapshot.user_id == user.id)
+    if fen:
+        query = query.where(AnalysisSnapshot.fen == fen)
+    rows = (await db.execute(query.order_by(AnalysisSnapshot.created_at.desc()).limit(50))).scalars().all()
+    return [_snapshot_out(row) for row in rows]
+
+
 @router.post(
     "/position",
     response_model=AnalysisJobOut,
@@ -66,7 +121,12 @@ async def analyse_position(
     Cache miss -> enqueues a job; client subscribes to /ws/analysis for the stream.
     """
     try:
-        validate_fen(payload.fen)
+        if payload.variant == "chess960":
+            board = chess.Board(payload.fen, chess960=True)
+            if not board.is_valid():
+                raise ValueError("Position is not legal")
+        else:
+            validate_fen(payload.fen)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -77,22 +137,24 @@ async def analyse_position(
     engine = await resolve_engine(payload.engine)
     depth = min(payload.depth, settings.ENGINE_MAX_DEPTH)
     multipv = min(payload.multipv, settings.ENGINE_MAX_MULTIPV)
-    zob = zobrist_of(payload.fen)
+    zob = zobrist_of(payload.fen) if payload.variant == "standard" else None
 
-    cached = await db.execute(
-        select(AnalysisCache).where(
-            AnalysisCache.zobrist == zob, AnalysisCache.depth >= depth,
-            AnalysisCache.engine_version == engine["cache_key"],
-            func.jsonb_array_length(AnalysisCache.multipv) >= multipv
-        ).limit(1)
-    )
-    hit = cached.scalar_one_or_none()
+    hit = None
+    if zob is not None:
+        cached = await db.execute(
+            select(AnalysisCache).where(
+                AnalysisCache.zobrist == zob, AnalysisCache.depth >= depth,
+                AnalysisCache.engine_version == engine["cache_key"],
+                func.jsonb_array_length(AnalysisCache.multipv) >= multipv
+            ).limit(1)
+        )
+        hit = cached.scalar_one_or_none()
     if hit:
         job = AnalysisJob(
             user_id=user.id, kind="position",
-            params={"fen": payload.fen, "depth": depth, "multipv": multipv, "engine": payload.engine},
+            params={"fen": payload.fen, "depth": depth, "multipv": multipv, "engine": payload.engine, "variant": payload.variant},
             status="done",
-            result={"cached": True, "depth": hit.depth, "lines": hit.multipv[:multipv], "engine": payload.engine},
+            result={"cached": True, "depth": hit.depth, "lines": hit.multipv[:multipv], "engine": payload.engine, "engine_version": engine.get("version"), "engine_cache_key": engine["cache_key"]},
         )
         db.add(job)
         await db.commit()
@@ -104,7 +166,7 @@ async def analyse_position(
 
     job = AnalysisJob(
         user_id=user.id, kind="position",
-        params={"fen": payload.fen, "depth": depth, "multipv": multipv, "engine": payload.engine},
+        params={"fen": payload.fen, "depth": depth, "multipv": multipv, "engine": payload.engine, "variant": payload.variant},
         status="queued",
     )
     db.add(job)
@@ -117,6 +179,7 @@ async def analyse_position(
         json.dumps({
             "job_id": job.id, "kind": "position", "fen": payload.fen,
             "depth": depth, "multipv": multipv, "user_id": user.id, "engine": payload.engine,
+            "variant": payload.variant,
         }),
     )
 
@@ -361,3 +424,9 @@ async def cancel_job(
     if job.status in ("queued", "running"):
         job.status = "canceled"
         await db.commit()
+        try:
+            redis = get_redis()
+            await redis.set(f"cancel:{job.id}", "1", ex=300)
+            await redis.publish(f"cancel:{job.id}", "1")
+        except Exception:
+            log.warning("Could not notify worker of canceled job %s", job.id, exc_info=True)

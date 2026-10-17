@@ -62,13 +62,13 @@ export default function Columns({
   return (
     <div>
       <div
-        className="relative flex items-end gap-2 border-b border-ivory/[0.07]"
+        className="relative flex items-end gap-2 border-b border-line/35"
         style={{ height }}
       >
         {/* In dot mode the axis does not start at zero, so it has to say so. */}
         {mode === "dot" && (
           <>
-            <span className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-ivory/[0.09]" />
+            <span className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-line/35" />
             <span className="pointer-events-none absolute left-0 top-0 -translate-y-1/2 bg-panel px-1 font-mono text-[10px] text-faint">
               {max}
               {unit}

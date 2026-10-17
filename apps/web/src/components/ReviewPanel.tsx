@@ -13,6 +13,7 @@
  */
 
 import { useMemo, useRef } from "react";
+import Link from "next/link";
 import { Annotation, Classification, ReviewSummary } from "@/lib/api";
 import { CLASS_META, CLASS_ORDER } from "@/lib/classification";
 
@@ -50,6 +51,7 @@ export interface LiveCallout {
 }
 
 interface Props {
+  gameId?: number;
   history: string[];
   annotations: Annotation[];
   summary: ReviewSummary | null;
@@ -61,6 +63,7 @@ interface Props {
 }
 
 export default function ReviewPanel({
+  gameId,
   history,
   annotations,
   summary,
@@ -155,6 +158,11 @@ export default function ReviewPanel({
           )}
         </button>
       )}
+      {gameId != null && hasReview && (
+        <Link className="btn-primary block w-full text-center text-sm" href={`/train/review?game=${gameId}`}>
+          Test yourself on this game
+        </Link>
+      )}
 
       {/* ---------- Accuracy ---------- */}
       {summary && hasReview && (
@@ -202,8 +210,8 @@ export default function ReviewPanel({
                 blown-out cloud that outshone the verdict dots sitting on it,
                 which are the only part of this chart you are meant to click. */}
             <linearGradient id="evalFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#EFEBE0" stopOpacity="0.82" />
-              <stop offset="100%" stopColor="#B9B3A4" stopOpacity="0.6" />
+              <stop offset="0%" stopColor="#F8F1E3" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#D7C6AA" stopOpacity="0.7" />
             </linearGradient>
           </defs>
           <path d={graph.path} fill="url(#evalFill)" />
@@ -212,7 +220,7 @@ export default function ReviewPanel({
             y1={H / 2}
             x2={W}
             y2={H / 2}
-            stroke="#3FBFA3"
+            stroke="#286047"
             strokeWidth={0.6}
             strokeDasharray="3 3"
             opacity={0.7}
@@ -224,7 +232,7 @@ export default function ReviewPanel({
               cy={d.y}
               r={3}
               fill={d.fill}
-              stroke="#16202F"
+              stroke="#302318"
               strokeWidth={1}
             />
           ))}
@@ -234,7 +242,7 @@ export default function ReviewPanel({
               y1={0}
               x2={(cursor / N) * W}
               y2={H}
-              stroke="#8B7BE8"
+              stroke="#643FA5"
               strokeWidth={1.5}
             />
           )}
@@ -258,7 +266,7 @@ export default function ReviewPanel({
               if (w === 0 && b === 0) return null;
               const meta = CLASS_META[cls];
               return (
-                <tr key={cls} className="hover:bg-ivory/[0.04]">
+                <tr key={cls} className="hover:bg-ink/[0.04]">
                   <td className="py-0.5">
                     <span className="inline-flex items-center gap-1.5">
                       <span

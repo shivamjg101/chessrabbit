@@ -143,7 +143,7 @@ export default function StudyShare({ study, members, onStudy, onMembers }: Props
               className={`flex cursor-pointer gap-2 rounded-lg border px-2.5 py-2 transition-colors ${
                 study.visibility === o.value
                   ? "border-accent/50 bg-accent/10"
-                  : "border-ivory/10 hover:bg-ivory/[0.05]"
+                  : "border-line/35 hover:bg-ink/[0.05]"
               }`}
             >
               <input

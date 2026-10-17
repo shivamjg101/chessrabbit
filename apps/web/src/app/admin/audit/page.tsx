@@ -17,7 +17,7 @@ const ACTION_LABELS: Record<string, string> = {
 function tone(action: string): string {
   if (action === "admin_login_failed") return "bg-bad/20 text-bad";
   if (action === "override_plan" || action === "suspend_user") return "bg-brass/20 text-brassLit";
-  return "bg-ivory/[0.07] text-muted";
+  return "bg-ink/[0.07] text-muted";
 }
 
 function describe(entry: AuditEntry): string {
@@ -73,7 +73,7 @@ export default function AdminAuditPage() {
 
       {error && <p className="mb-3 text-sm text-bad">{error}</p>}
 
-      <ul className="card divide-y divide-ivory/[0.04]">
+      <ul className="card divide-y divide-line/35">
         {data?.entries.map((entry) => (
           <li key={entry.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5">
             <span className={`chip ${tone(entry.action)}`}>

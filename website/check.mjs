@@ -14,6 +14,7 @@ for (const file of pages) {
   assert.equal((html.match(/<h1[ >]/g) || []).length, 1, `${file}: exactly one H1`);
   assert.match(html, /<html lang="en">/);
   assert.match(html, /name="viewport"/);
+  assert.match(html, /wood-theme\.css/, `${file}: oak theme stylesheet`);
   assert.doesNotMatch(html, /noindex|localhost|TODO|PLACEHOLDER/);
   const title = html.match(/<title>(.*?)<\/title>/)[1];
   const description = html.match(/name="description" content="([^"]+)"/)[1];

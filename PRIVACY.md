@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 3 October 2026
+Last updated: 16 October 2026
 
 ChessRabbit is designed as a local-first desktop chess application. The Windows app runs on your computer and stores your games, analysis, settings and engine results in your local ChessRabbit data folder.
 
@@ -10,11 +10,12 @@ ChessRabbit may store the following on your PC:
 
 - Imported PGN games and game metadata.
 - Studies, annotations, repertoires, puzzles, training progress and engine evaluations.
-- Local account/session information used by the app on your machine.
+- Local session information used by the app on your machine; the desktop app does not require account registration.
+- If you enable the optional app lock, a salted password hash in `app-lock.json`, not your plaintext password.
 - Engine settings, trusted local engine paths and app preferences.
 - Local logs used for troubleshooting startup, database and engine issues.
 
-On Windows, desktop data is stored under `%APPDATA%/ChessRabbit/local` unless a future version documents another location. Backups of this folder may contain your private games and local database credentials, so treat backups as private.
+On Windows, games and the local database are stored under `%APPDATA%/ChessRabbit/local`, while app-lock settings are stored at `%APPDATA%/ChessRabbit/app-lock.json` (or in a custom `--data-dir`). Backups of the local folder may contain your private games and local database credentials, so treat backups as private. The app lock limits access through the app; it does not encrypt your game files and can be reset by someone with access to your Windows user profile.
 
 ## Internet use
 

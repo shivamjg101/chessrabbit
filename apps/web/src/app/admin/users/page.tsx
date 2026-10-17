@@ -27,7 +27,7 @@ export default function UsersPage() {
     {error && <p className="text-bad">{error}</p>}
     <div className="overflow-auto"><table className="w-full text-left text-sm">
       <thead><tr><th className="p-2">Account</th><th>Games</th><th>Status</th><th>Action</th></tr></thead>
-      <tbody>{data?.users.map((user) => <tr key={user.id} className="border-t border-ivory/10">
+      <tbody>{data?.users.map((user) => <tr key={user.id} className="border-t border-line/35">
         <td className="p-2">{user.display_name}<p className="text-xs text-muted">{user.email}</p></td>
         <td>{user.games}</td><td>{user.suspended ? "Suspended" : "Active"}{user.is_admin ? " · Admin" : ""}</td>
         <td><button className="btn text-xs" disabled={busy !== null || user.is_admin} onClick={() => toggle(user)}>{user.suspended ? "Restore" : "Suspend"}</button></td>

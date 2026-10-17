@@ -227,7 +227,7 @@ async def search_by_position(
         text(
             """
             SELECT g.id, g.white, g.black, g.white_elo, g.black_elo, g.result,
-                   g.event, g.played_on, g.eco, g.opening, g.ply_count
+                   g.event, g.played_on, g.eco, g.opening, g.ply_count, g.variant
             FROM game_positions p
             JOIN games g ON g.id = p.game_id
             WHERE p.zobrist = :zob AND g.owner_id IS NULL
@@ -308,7 +308,7 @@ async def search_games(
 
     sql = f"""
         SELECT g.id, g.white, g.black, g.white_elo, g.black_elo, g.result,
-               g.event, g.played_on, g.eco, g.opening, g.ply_count
+               g.event, g.played_on, g.eco, g.opening, g.ply_count, g.variant
         FROM games g
         WHERE {' AND '.join(clauses)}
         ORDER BY GREATEST(g.white_elo, g.black_elo) DESC NULLS LAST, g.id DESC

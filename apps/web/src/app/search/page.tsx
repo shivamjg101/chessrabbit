@@ -145,7 +145,7 @@ function SearchScreen() {
       </div>
 
       {mode === "players" ? (
-        <div className="mb-5 space-y-3 rounded-xl border border-ivory/5 bg-panelAlt/60 p-4">
+        <div className="mb-5 space-y-3 rounded-xl border border-line/35 bg-panelAlt/60 p-4">
           <div className="flex flex-wrap gap-2">
             {field("white", "White", "Carlsen")}
             {field("black", "Black", "Nepomniachtchi")}
@@ -201,7 +201,7 @@ function SearchScreen() {
           </p>
         </div>
       ) : (
-        <div className="mb-5 space-y-2 rounded-xl border border-ivory/5 bg-panelAlt/60 p-4">
+        <div className="mb-5 space-y-2 rounded-xl border border-line/35 bg-panelAlt/60 p-4">
           <label className="mb-1 block text-xs text-muted" htmlFor="f-fen">
             Position (FEN)
           </label>
@@ -270,7 +270,7 @@ function Results({
 
   if (results && results.games.length === 0) {
     return (
-      <div className="rounded-xl border border-ivory/5 bg-panelAlt/60 p-8 text-center">
+      <div className="rounded-xl border border-line/35 bg-panelAlt/60 p-8 text-center">
         <p className="font-display text-lg">No games matched</p>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
           {page > 1
@@ -285,10 +285,10 @@ function Results({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border border-ivory/5 bg-panelAlt/60">
+      <div className="overflow-x-auto rounded-xl border border-line/35 bg-panelAlt/60">
         <table className="w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wider text-muted">
-            <tr className="border-b border-ivory/[0.06]">
+            <tr className="border-b border-line/35">
               <th className="px-3 py-2 font-semibold">White</th>
               <th className="px-3 py-2 font-semibold">Black</th>
               <th className="px-3 py-2 font-semibold">Result</th>
@@ -304,7 +304,7 @@ function Results({
                 key={g.id}
                 onClick={() => onOpen(g)}
                 title="Open in the analysis board"
-                className="cursor-pointer border-b border-ivory/[0.04] transition-colors last:border-0 hover:bg-ivory/[0.05]"
+                className="cursor-pointer border-b border-line/35 transition-colors last:border-0 hover:bg-ink/[0.05]"
               >
                 <td className="px-3 py-2">
                   <span className="truncate">{g.white || "?"}</span>

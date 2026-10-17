@@ -110,7 +110,7 @@ export default function EnginePane({
               disabled={moves.length === 0}
               title="Put this line on the board"
               className="flex w-full items-baseline gap-2 rounded-md px-1.5 py-1 text-left
-                         transition-colors hover:bg-ivory/[0.07] disabled:hover:bg-transparent"
+                         transition-colors hover:bg-ink/[0.07] disabled:hover:bg-transparent"
             >
               <span
                 className={`w-12 shrink-0 font-mono text-xs font-semibold ${

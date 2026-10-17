@@ -61,7 +61,7 @@ export default function ExplorerPane({
       </div>
 
       {scope === "lichess_live" && (
-        <details className="rounded-lg border border-ivory/10 p-2 text-xs" open={Boolean(error)}>
+        <details className="rounded-lg border border-line/35 p-2 text-xs" open={Boolean(error)}>
           <summary className="cursor-pointer">Connect Lichess</summary>
           <p className="my-2 text-muted">
             Live explorer requires a Lichess token. <a className="underline" href="https://lichess.org/account/oauth/token/create?description=ChessRabbit%20Explorer" target="_blank" rel="noreferrer">Create a personal API token</a> with no permissions selected.
@@ -99,7 +99,7 @@ export default function ExplorerPane({
                 onClick={() => onPlay(m.uci)}
                 title={`Play ${m.san}`}
                 className="grid w-full grid-cols-[3rem_3.5rem_1fr] items-center gap-2
-                           rounded-md px-1.5 py-1 text-left transition-colors hover:bg-ivory/[0.08]"
+                           rounded-md px-1.5 py-1 text-left transition-colors hover:bg-ink/[0.08]"
               >
                 <span className="font-mono text-[13px] font-semibold">{m.san}</span>
                 <span className="text-right font-mono text-[11px] text-muted">
@@ -139,9 +139,9 @@ export default function ExplorerPane({
           board it was a feature nobody could reach. */}
       <Link
         href={`/search/?fen=${encodeURIComponent(fen)}`}
-        className="flex items-center justify-center gap-1.5 rounded-lg border border-ivory/10
+        className="flex items-center justify-center gap-1.5 rounded-lg border border-line/35
                    px-2 py-1.5 text-[11px] text-muted transition-colors
-                   hover:bg-ivory/10 hover:text-ink"
+                   hover:bg-ink/10 hover:text-ink"
       >
         Find games with this position
       </Link>

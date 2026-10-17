@@ -49,13 +49,8 @@ export const DEFAULTS: Settings = {
   showCoordinates: true,
   highlightLastMove: true,
   animationMs: 200,
-  // Must match BOARD_THEMES[0].id in lib/boardTheme.ts, which is where the
-  // colours live. Not imported from there: boardTheme.ts imports useSettings
-  // from this file, so reading it back would be a cycle. When the default
-  // theme changes, change it in both places — this literal is how the board
-  // stayed walnut through an entire repalette, because swapping the theme
-  // list left this line pointing at the one brown theme still in it.
-  boardTheme: "slate",
+  // Match BOARD_THEMES[0].id; importing it would create a settings cycle.
+  boardTheme: "walnut",
 };
 
 /** Selectable engine depths and line counts, shared with the settings UI. */

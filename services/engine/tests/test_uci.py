@@ -72,6 +72,24 @@ def test_network_contents_options_and_profile_id_partition_cache(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_chess960_option_is_enabled_for_variant_and_reset_for_standard(tmp_path):
+    script, log = tmp_path / "fake.py", tmp_path / "commands.txt"
+    script.write_text(FAKE.replace(
+        'print("option name MultiPV type spin default 1 min 1 max 10")',
+        'print("option name MultiPV type spin default 1 min 1 max 10")\n        print("option name UCI_Chess960 type check default false")',
+    ))
+    engine = StockfishEngine(binary=sys.executable, args=[str(script), str(log)])
+    try:
+        await engine.start()
+        _ = [item async for item in engine.analyse("test-fen", chess960=True)]
+        _ = [item async for item in engine.analyse("test-fen")]
+        commands = log.read_text()
+        assert commands.index("setoption name UCI_Chess960 value true") < commands.index("setoption name UCI_Chess960 value false")
+    finally:
+        await engine.close()
+
+
+@pytest.mark.asyncio
 async def test_missing_leela_network_does_not_prevent_other_engine_startup(tmp_path, monkeypatch):
     script = tmp_path / "fake.py"
     script.write_text(FAKE)

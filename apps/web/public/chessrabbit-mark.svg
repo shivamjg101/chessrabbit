@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">ChessRabbit</title>
+  <rect width="256" height="256" rx="54" fill="#704729"/>
+  <g fill="#FFF8EA">
+    <path d="M95 113C87 90 79 64 77 43c-1-9 3-15 10-16 7-2 12 3 16 11l27 65Z"/>
+    <path d="m129 104 10-69c1-9 6-14 13-14 8 0 12 6 12 15l-4 72Z"/>
+    <path d="M76 184c0-22 7-43 21-61 13-17 29-26 48-26 22 0 39 12 48 31l10 7c6 4 6 11 0 15l-17 10c-9 6-19 5-28 0-11 9-18 20-20 32H76Z"/>
+    <rect x="68" y="189" width="121" height="14" rx="3"/>
+    <rect x="61" y="204" width="135" height="16" rx="5"/>
+  </g>
+  <circle cx="163" cy="129" r="5" fill="#EBD793"/>
+  <path d="M187 151c-8 5-16 6-24 3" fill="none" stroke="#704729" stroke-width="6" stroke-linecap="round"/>
+</svg>

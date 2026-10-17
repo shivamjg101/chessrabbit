@@ -15,32 +15,80 @@ on:
       - 'LEGAL.md'
       - 'PRIVACY.md'
       - 'SECURITY.md'
+      - 'CONTRIBUTING.md'
       - 'docs/WINDOWS_SECURITY.md'
+  # The installer job must report a check even when a PR only changes docs.
+  pull_request:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested desktop prerelease
+        type: boolean
+        default: false
 
 concurrency:
-  group: windows-desktop-${{ github.ref }}
-  cancel-in-progress: true
+  group: windows-desktop-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
-  contents: write
+  contents: read
+  pull-requests: read
 
 jobs:
   installer:
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 50
     defaults:
       run:
         shell: pwsh
     steps:
+      - name: Select installer check
+        id: changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PUBLISH_REQUESTED: ${{ inputs.publish }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          if ($env:PUBLISH_REQUESTED -eq 'true' -and ($env:GITHUB_REF -ne 'refs/heads/main' -or $env:IS_FORK -eq 'true')) {
+            throw 'Publishing is only allowed from the upstream main branch.'
+          }
+          $pattern = '^(apps/(desktop|api|web)/|services/engine/|db/migrations/|\.github/workflows/desktop\.yml$|LICENSE$|THIRD_PARTY_NOTICES\.md$|LEGAL\.md$|PRIVACY\.md$|SECURITY\.md$|CONTRIBUTING\.md$|docs/WINDOWS_SECURITY\.md$)'
+          if ('apps/api/app/main.py' -notmatch $pattern -or 'CONTRIBUTING.md' -notmatch $pattern -or 'README.md' -match $pattern -or 'website/build.mjs' -match $pattern) {
+            throw 'Installer path selection is invalid.'
+          }
+          $build = $true
+          if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+            $paths = @()
+            try { $paths = @(gh pr diff $env:PR_NUMBER --name-only --repo $env:GITHUB_REPOSITORY) } catch {}
+            if ($LASTEXITCODE -eq 0 -and $paths.Count -gt 0) {
+              $build = [bool]($paths | Where-Object { $_ -match $pattern } | Select-Object -First 1)
+            } else {
+              Write-Warning 'Could not list pull-request files; running the installer check.'
+            }
+          }
+          "build=$($build.ToString().ToLowerInvariant())" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+          Write-Host "Build installer: $build"
       - uses: actions/checkout@v4
+        if: steps.changes.outputs.build == 'true'
       - uses: actions/setup-node@v4
+        if: steps.changes.outputs.build == 'true'
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/desktop/package-lock.json
       - uses: actions/setup-python@v5
+        if: steps.changes.outputs.build == 'true'
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            apps/desktop/requirements.txt
+            apps/desktop/requirements-build.txt
       - name: Install build dependencies
+        if: steps.changes.outputs.build == 'true'
         run: |
           python -m pip install -r apps/desktop/requirements-build.txt
           if ($LASTEXITCODE -ne 0) { throw 'Python dependency installation failed' }
@@ -49,34 +97,74 @@ jobs:
           npm ci --prefix apps/desktop
           if ($LASTEXITCODE -ne 0) { throw 'Desktop dependency installation failed' }
       - name: Build Windows installer
+        if: steps.changes.outputs.build == 'true'
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main' && secrets.CSC_KEY_PASSWORD || '' }}
         run: ./apps/desktop/scripts/build_windows.ps1
       - name: Microsoft Defender scan release files
         run: ./apps/desktop/scripts/scan_windows.ps1
-      - name: Install and exercise the real app twice
+      - name: Upgrade 0.1.2, then back up and restore across three launches
+        timeout-minutes: 30
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $installDirectory = Join-Path $env:RUNNER_TEMP 'ChessRabbit-installed'
+          $upgradeWorkspace = Join-Path $env:RUNNER_TEMP 'ChessRabbit-upgrade'
           $testWorkspace = Join-Path $env:RUNNER_TEMP 'ChessRabbit-smoke'
+          $oldAssets = Join-Path $env:RUNNER_TEMP 'ChessRabbit-0.1.2'
+          New-Item -ItemType Directory -Path $oldAssets | Out-Null
+          gh release download desktop-v0.1.2 --repo shivamjg101/chessrabbit --pattern 'ChessRabbit-Setup.exe' --pattern 'SHA256SUMS.txt' --dir $oldAssets
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the 0.1.2 upgrade baseline' }
+          $oldInstaller = Join-Path $oldAssets 'ChessRabbit-Setup.exe'
+          $manifest = Get-Content -LiteralPath (Join-Path $oldAssets 'SHA256SUMS.txt') -Raw
+          if ($manifest -match '(?m)^([0-9a-fA-F]{64})  ChessRabbit-Setup\.exe\r?$') { $expectedHash = $Matches[1] }
+          else { throw '0.1.2 checksum manifest has no installer hash' }
+          if ((Get-FileHash -LiteralPath $oldInstaller -Algorithm SHA256).Hash -ine $expectedHash) { throw '0.1.2 installer checksum mismatch' }
+          $oldInstall = Start-Process -FilePath $oldInstaller -ArgumentList '/S', "/D=$installDirectory" -WindowStyle Hidden -PassThru -Wait
+          if ($oldInstall.ExitCode -ne 0) { throw '0.1.2 installer failed' }
+          $exe = Join-Path $installDirectory 'ChessRabbit.exe'
+          $oldOutput = Join-Path $env:RUNNER_TEMP 'desktop-upgrade-old.txt'
+          $oldError = Join-Path $env:RUNNER_TEMP 'desktop-upgrade-old-error.txt'
+          $oldRun = Start-Process -FilePath $exe -ArgumentList '--smoke-test', "--data-dir=$upgradeWorkspace" -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput $oldOutput -RedirectStandardError $oldError
+          Get-Content -LiteralPath $oldOutput
+          Get-Content -LiteralPath $oldError
+          if ($oldRun.ExitCode -ne 0 -or -not (Select-String -LiteralPath $oldOutput -SimpleMatch 'CHESSRABBIT_SMOKE_PASSED' -Quiet)) { throw '0.1.2 smoke test failed' }
+          if (-not (Test-Path -LiteralPath (Join-Path $upgradeWorkspace 'local/smoke-game.json'))) { throw '0.1.2 did not save a test game' }
+          $orphans = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($installDirectory, [StringComparison]::OrdinalIgnoreCase) }
+          if ($orphans) { throw '0.1.2 left a background process running' }
           $installer = Start-Process -FilePath "$PWD/dist/windows/ChessRabbit-Setup.exe" -ArgumentList '/S', "/D=$installDirectory" -WindowStyle Hidden -PassThru -Wait
           if ($installer.ExitCode -ne 0) { throw 'Installer failed' }
-          $exe = Join-Path $installDirectory 'ChessRabbit.exe'
           if (-not (Test-Path -LiteralPath $exe)) { throw 'Installed executable is missing' }
+          $upgradeOutput = Join-Path $env:RUNNER_TEMP 'desktop-upgrade-new.txt'
+          $upgradeError = Join-Path $env:RUNNER_TEMP 'desktop-upgrade-new-error.txt'
+          $upgradeRun = Start-Process -FilePath $exe -ArgumentList '--smoke-test', "--data-dir=$upgradeWorkspace" -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput $upgradeOutput -RedirectStandardError $upgradeError
+          Get-Content -LiteralPath $upgradeOutput
+          Get-Content -LiteralPath $upgradeError
+          if ($upgradeRun.ExitCode -ne 0 -or -not (Select-String -LiteralPath $upgradeOutput -SimpleMatch 'CHESSRABBIT_SMOKE_PASSED' -Quiet)) { throw 'Updated app smoke test failed' }
+          if (-not (Select-String -LiteralPath $upgradeOutput -SimpleMatch 'Existing game and database survived restart' -Quiet)) { throw '0.1.2 game did not survive the update' }
+          $orphans = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($installDirectory, [StringComparison]::OrdinalIgnoreCase) }
+          if ($orphans) { throw 'Updated app left a background process running' }
           $shortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'ChessRabbit.lnk'
           if (-not (Test-Path -LiteralPath $shortcut)) { throw 'Desktop shortcut is missing' }
-          foreach ($run in 1..2) {
+          $expectedPhases = @(
+            'Encrypted restore smoke: snapshot saved',
+            'Encrypted restore smoke: restore staged',
+            'Encrypted snapshot restored across launches'
+          )
+          foreach ($run in 1..3) {
             $stdout = Join-Path $env:RUNNER_TEMP "desktop-smoke-$run.txt"
             $stderr = Join-Path $env:RUNNER_TEMP "desktop-smoke-$run-error.txt"
-            $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test', "--data-dir=$testWorkspace" -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-            if (-not $process.WaitForExit(180000)) { Stop-Process -Id $process.Id; throw 'Desktop smoke test timed out' }
+            $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test', '--smoke-backup-restore', "--data-dir=$testWorkspace" -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput $stdout -RedirectStandardError $stderr
             Get-Content -LiteralPath $stdout
             Get-Content -LiteralPath $stderr
             if ($process.ExitCode -ne 0 -or -not (Select-String -LiteralPath $stdout -SimpleMatch 'CHESSRABBIT_SMOKE_PASSED' -Quiet)) { throw 'Installed runtime smoke test failed' }
+            if (-not (Select-String -LiteralPath $stdout -SimpleMatch $expectedPhases[$run - 1] -Quiet)) { throw "Desktop restore smoke phase $run did not complete" }
             $orphans = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($installDirectory, [StringComparison]::OrdinalIgnoreCase) }
             if ($orphans) { throw 'Installed app left a background process running' }
           }
       - name: Package corresponding source and notices
+        if: steps.changes.outputs.build == 'true'
         run: |
           git archive --format=zip HEAD -o dist/windows/ChessRabbit-Source.zip
           if ($LASTEXITCODE -ne 0) { throw 'Source packaging failed' }
@@ -84,6 +172,7 @@ jobs:
           $assets = Get-ChildItem dist/windows -File | Where-Object { $_.Extension -in '.exe', '.zip' }
           $assets | ForEach-Object { "{0}  {1}" -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name } | Set-Content dist/windows/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v4
+        if: steps.changes.outputs.build == 'true'
         with:
           name: ChessRabbit-Windows-x64
           path: |
@@ -91,24 +180,53 @@ jobs:
             dist/windows/ChessRabbit-Source.zip
             dist/windows/Stockfish-19-Upstream.zip
             dist/windows/SHA256SUMS.txt
-          if-no-files-found: warn
-      - name: Publish tested desktop prerelease
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main' && !github.event.repository.fork
+    needs: installer
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ChessRabbit-Windows-x64
+          path: dist/windows
+      - name: Verify and publish tested desktop prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $directory = 'dist/windows'
+          $manifestPath = Join-Path $directory 'SHA256SUMS.txt'
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw
+          $assets = @('ChessRabbit-Setup.exe', 'ChessRabbit-Source.zip', 'Stockfish-19-Upstream.zip')
+          foreach ($asset in $assets) {
+            $path = Join-Path $directory $asset
+            if (-not (Test-Path -LiteralPath $path)) { throw "Missing release asset: $asset" }
+            $pattern = '(?m)^([0-9a-fA-F]{64})  ' + [regex]::Escape($asset) + '\r?$'
+            if ($manifest -notmatch $pattern) { throw "Missing checksum for $asset" }
+            if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ine $Matches[1]) { throw "Checksum mismatch: $asset" }
+          }
           $tag = 'desktop-v' + (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host 'This version is already published. Bump apps/desktop/package.json to publish a new version.'
-          } else {
-            $notes = @(
-              'Install ChessRabbit-Setup.exe on Windows 10/11 x64, then open ChessRabbit from your desktop or Start menu. Stockfish 19 and local storage are included. No Docker or development tools are needed.',
-              '',
-              'Use Engines → Add Leela Chess Zero to select lc0.exe and its network, or add another local UCI engine. All features are free; donations are optional.',
-              '',
-              'This prerelease installer may show a SmartScreen reputation warning until code signing is configured. The release workflow scans the installer with Microsoft Defender before publication. ChessRabbit source and build scripts, the unmodified upstream Stockfish archive, and SHA-256 checksums are attached. Stockfish source and notices are also included in the installed application.'
-            ) -join [Environment]::NewLine
-            $notes | Set-Content release-notes.md -Encoding utf8
-            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "ChessRabbit $($tag.Substring(9)) for Windows" --prerelease --notes-file release-notes.md dist/windows/ChessRabbit-Setup.exe dist/windows/ChessRabbit-Source.zip dist/windows/Stockfish-19-Upstream.zip dist/windows/SHA256SUMS.txt
-            if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
-          }
+          if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Bump the desktop version before publishing." }
+          git ls-remote --exit-code --tags origin "refs/tags/$tag" *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Tag $tag already exists without a release. Resolve it before publishing." }
+          if ($LASTEXITCODE -ne 2) { throw 'Could not verify that the release tag is unused.' }
+          $notes = @(
+            'Install ChessRabbit-Setup.exe on Windows 10/11 x64, then open ChessRabbit from your desktop or Start menu. Stockfish 19 and local storage are included. No Docker or development tools are needed.',
+            '',
+            'If you already use ChessRabbit, close it, save an encrypted backup and recovery key, then run this installer under the same Windows account. Your games remain in the local data folder and new database migrations run at startup.',
+            '',
+            'Use Engines to add Leela Chess Zero or another local UCI engine. All features are free; donations are optional.',
+            '',
+            'This prerelease installer may show a SmartScreen reputation warning until code signing is configured. The release workflow scans the installer with Microsoft Defender before publication. ChessRabbit source, the upstream Stockfish archive, and SHA-256 checksums are attached.'
+          ) -join [Environment]::NewLine
+          gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "ChessRabbit $($tag.Substring(9)) for Windows" --prerelease --generate-notes --notes $notes (Join-Path $directory 'ChessRabbit-Setup.exe') (Join-Path $directory 'ChessRabbit-Source.zip') (Join-Path $directory 'Stockfish-19-Upstream.zip') $manifestPath
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

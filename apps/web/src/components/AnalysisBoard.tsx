@@ -98,7 +98,7 @@ const NOTATION_STYLE = { fontSize: "10px", fontWeight: "600" };
  * is drawn over wooden squares, and it must not be mistaken for the board's
  * own last-move highlight. Matches `accent2` in the Tailwind palette.
  */
-const ARROW_COLOR = "#8B7BE8";
+const ARROW_COLOR = "#643FA5";
 
 type Tab = "report" | "moves" | "engine" | "book" | "notes";
 
@@ -143,6 +143,8 @@ interface Props {
   initialPgn?: string;
   gameLabel?: string;
   gameId?: number;
+  onOpenGames?: () => void;
+  onImportPgn?: () => void;
   initialAnnotations?: Annotation[];
   /** Ply count from the server's parse — the fallback alignment check. */
   expectedPlies?: number;
@@ -156,6 +158,8 @@ export default function AnalysisBoard({
   initialPgn,
   gameLabel,
   gameId,
+  onOpenGames,
+  onImportPgn,
   initialAnnotations,
   expectedPlies,
   players,
@@ -855,11 +859,11 @@ export default function AnalysisBoard({
 
       {/* ---------- Analysis panel ---------- */}
       <aside
-        className="flex w-full shrink-0 flex-col border-ivory/[0.07] bg-panel/60 backdrop-blur-xl
+        className="flex w-full shrink-0 flex-col border-line/35 bg-panel/60 backdrop-blur-xl
                    border-t lg:h-full lg:w-[352px] lg:border-l lg:border-t-0 xl:w-[400px]"
       >
         {/* Header: what you are looking at */}
-        <div className="shrink-0 border-b border-ivory/[0.06] px-3 py-2.5">
+        <div className="shrink-0 border-b border-line/35 px-3 py-2.5">
           <div className="flex items-center gap-2">
             <span className="eyebrow">
               {study ? (study.readOnly ? "Shared study" : "Study") : "Game review"}
@@ -890,7 +894,7 @@ export default function AnalysisBoard({
             nothing. It gives up its own height first. */}
         {!study && (
           <div
-            className="shrink-0 space-y-3 overflow-y-auto border-b border-ivory/[0.06]
+            className="shrink-0 space-y-3 overflow-y-auto border-b border-line/35
                        px-3 py-3 lg:max-h-[42%]"
           >
             <VerdictPlate
@@ -907,6 +911,12 @@ export default function AnalysisBoard({
               hasReview={hasReview}
               canRun={gameId != null}
             />
+            {!initialPgn && gameId == null && history.length === 0 && onOpenGames && onImportPgn && (
+              <div className="grid grid-cols-2 gap-2">
+                <button className="btn-primary" onClick={onOpenGames}>Open games</button>
+                <button className="btn" onClick={onImportPgn}>Import PGN</button>
+              </div>
+            )}
             <BlunderIndex
               annotations={[...annByPly.values()]}
               cursor={mt.cursorPly}
@@ -983,6 +993,7 @@ export default function AnalysisBoard({
           )}
           {tab === "report" && (
             <ReviewPanel
+              gameId={gameId}
               history={history}
               annotations={[...annByPly.values()]}
               summary={reviewSummary}
@@ -1019,7 +1030,7 @@ export default function AnalysisBoard({
                              disabled:opacity-40 disabled:hover:bg-transparent ${
                                copied === "failed"
                                  ? "border-bad/40 text-bad"
-                                 : "border-ivory/10 hover:bg-ivory/10 hover:text-ink"
+                                 : "border-line/35 hover:bg-ink/10 hover:text-ink"
                              }`}
                 >
                   {copied === "done"
@@ -1040,6 +1051,10 @@ export default function AnalysisBoard({
             </div>
           )}
           {tab === "engine" && (
+            <div className="space-y-3">
+            <Link className="btn block text-center text-xs" href={`/compare?fen=${encodeURIComponent(fen)}`}>
+              Compare engines on this position
+            </Link>
             <EnginePane
               // Only the lines that belong to the position on the board. In
               // the moment after a move they still describe the previous one,
@@ -1055,6 +1070,7 @@ export default function AnalysisBoard({
               onToggleAuto={(autoAnalyse) => updateSettings({ autoAnalyse })}
               onPlayLine={(sans, evalCp) => mt.playLine(sans, { evalCp })}
             />
+            </div>
           )}
           {tab === "book" && (
             <ExplorerPane
@@ -1073,7 +1089,7 @@ export default function AnalysisBoard({
 
         {/* Transport controls: pinned to the panel on a desktop, and stuck to
             the bottom of the viewport while scrolling on a phone. */}
-        <div className="sticky bottom-0 shrink-0 border-t border-ivory/[0.06] bg-panel/90 p-2.5 backdrop-blur-xl lg:static lg:bg-transparent lg:backdrop-blur-none">
+        <div className="sticky bottom-0 shrink-0 border-t border-line/35 bg-panel/90 p-2.5 backdrop-blur-xl lg:static lg:bg-transparent lg:backdrop-blur-none">
           {hasReview && onMainline && mt.node.children.length > 0 && (
             <button className="btn-go mb-2 w-full text-sm" onClick={mt.next}>
               Next move  →
@@ -1087,14 +1103,14 @@ export default function AnalysisBoard({
               <button
                 onClick={() => mt.nextAlternative(-1)}
                 title="Previous alternative (Alt+↑)"
-                className="ml-auto rounded border border-ivory/10 px-1.5 py-0.5 hover:bg-ivory/10 hover:text-ink"
+                className="ml-auto rounded border border-line/35 px-1.5 py-0.5 hover:bg-ink/10 hover:text-ink"
               >
                 ↑
               </button>
               <button
                 onClick={() => mt.nextAlternative(1)}
                 title="Next alternative (Alt+↓)"
-                className="rounded border border-ivory/10 px-1.5 py-0.5 hover:bg-ivory/10 hover:text-ink"
+                className="rounded border border-line/35 px-1.5 py-0.5 hover:bg-ink/10 hover:text-ink"
               >
                 ↓
               </button>
@@ -1105,7 +1121,7 @@ export default function AnalysisBoard({
                 <button
                   onClick={mt.promoteLine}
                   title="Make this the main line"
-                  className="rounded border border-ivory/10 px-1.5 py-0.5 hover:bg-accent/20 hover:text-accent"
+                  className="rounded border border-line/35 px-1.5 py-0.5 hover:bg-accent/20 hover:text-accent"
                 >
                   ★
                 </button>
@@ -1114,7 +1130,7 @@ export default function AnalysisBoard({
                 <button
                   onClick={mt.removeLine}
                   title="Delete this line (Del)"
-                  className="rounded border border-ivory/10 px-1.5 py-0.5 hover:bg-bad/20 hover:text-bad"
+                  className="rounded border border-line/35 px-1.5 py-0.5 hover:bg-bad/20 hover:text-bad"
                 >
                   ✕
                 </button>
@@ -1122,7 +1138,7 @@ export default function AnalysisBoard({
             </div>
           )}
           <div className="flex items-center gap-2">
-            <div className="flex flex-1 divide-x divide-ivory/10 overflow-hidden rounded-lg border border-ivory/10 bg-ivory/[0.05]">
+            <div className="flex flex-1 divide-x divide-line/35 overflow-hidden rounded-lg border border-line/35 bg-ink/[0.05]">
               {[
                 { glyph: "«", title: "Start (↑)", go: mt.toStart },
                 { glyph: "‹", title: "Back (←)", go: mt.back },
@@ -1134,7 +1150,7 @@ export default function AnalysisBoard({
                   onClick={b.go}
                   title={b.title}
                   aria-label={b.title}
-                  className="flex-1 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/10 hover:text-ink"
+                  className="flex-1 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ink/10 hover:text-ink"
                 >
                   {b.glyph}
                 </button>
@@ -1144,7 +1160,7 @@ export default function AnalysisBoard({
               onClick={flip}
               title="Flip board (f)"
               aria-label="Flip board"
-              className="rounded-lg border border-ivory/10 bg-ivory/[0.05] px-3 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/10 hover:text-ink"
+              className="rounded-lg border border-line/35 bg-ink/[0.05] px-3 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ink/10 hover:text-ink"
             >
               ⟳
             </button>

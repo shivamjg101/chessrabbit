@@ -228,7 +228,7 @@ async def _sql_aggregates(db: AsyncSession, user_id: int, filters: Filters) -> d
                count(*) FILTER (WHERE (g.result = '1-0') = (g.user_color = 'w')
                                   AND g.result <> '1/2-1/2')           AS wins,
                count(*) FILTER (WHERE g.result = '1/2-1/2')            AS draws
-        FROM games g WHERE {where}
+        FROM games g WHERE {where} AND g.variant = 'standard'
         GROUP BY 1, 2, 3
     """)
 
@@ -275,6 +275,21 @@ async def _sql_aggregates(db: AsyncSession, user_id: int, filters: Filters) -> d
         GROUP BY 1
     """)
 
+    # Recent reviewed games with a concrete next action. Count both sides:
+    # the interactive review asks about every critical position in a game.
+    practice_games = await rows(f"""
+        SELECT g.id, g.white, g.black, g.opening, g.played_on,
+               count(*) AS critical_moves
+        FROM games g JOIN annotations a ON a.game_id = g.id
+        WHERE {where}
+          AND a.user_id = :uid
+          AND a.classification IN ('inaccuracy', 'mistake', 'blunder')
+          AND a.best_uci IS NOT NULL
+        GROUP BY g.id
+        ORDER BY g.played_on DESC NULLS LAST, g.id DESC
+        LIMIT 6
+    """)
+
     # --- games we could not attribute to a colour, so the page can say so ---
     unattributed = (await rows("""
         SELECT count(*) FROM games g
@@ -290,6 +305,7 @@ async def _sql_aggregates(db: AsyncSession, user_id: int, filters: Filters) -> d
         "time_of_day": time_of_day,
         "day_of_week": day_of_week,
         "quality": quality,
+        "practice_games": practice_games,
         "unattributed": unattributed,
     }
 
@@ -391,6 +407,7 @@ async def _replay_pass(
     castle_side = _counter()
     castle_tally: dict[str, _Tally] = defaultdict(_Tally)
     quality_by_month: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    clock_quality: dict[str, dict[str, int]] = defaultdict(lambda: {"moves": 0, "errors": 0})
     reviewed = 0
 
     for gid, result, color, movetext, ply_count, played_on in games:
@@ -419,7 +436,8 @@ async def _replay_pass(
         # Eval before the first move: the start position is level.
         prev_cp = 0.0
 
-        for ply, move in enumerate(game.mainline_moves()):
+        for ply, node in enumerate(game.mainline()):
+            move = node.move
             phase = _phase_of(board, ply)
             last_phase = phase
             mine = (ply % 2 == 0) == white
@@ -460,6 +478,11 @@ async def _replay_pass(
                 cls = cls_by_ply.get(ply)
                 if cls and month:
                     quality_by_month[month][cls] += 1
+                if cls and (seconds := node.clock()) is not None:
+                    band = "under_30" if seconds <= 30 else "over_30"
+                    clock_quality[band]["moves"] += 1
+                    if cls in {"inaccuracy", "mistake", "blunder"}:
+                        clock_quality[band]["errors"] += 1
 
             board.push(move)
 
@@ -516,6 +539,7 @@ async def _replay_pass(
         "quality_by_month": {
             m: dict(counts) for m, counts in sorted(quality_by_month.items())
         },
+        "time_pressure": dict(clock_quality),
     }
 
 
@@ -584,6 +608,15 @@ async def build_insights(db: AsyncSession, user: User, filters: Filters) -> dict
         "games": games,
         "reviewed": replay.get("reviewed", 0),
         "unattributed": agg["unattributed"],
+        "practice_games": [
+            {
+                "id": r[0], "white": r[1], "black": r[2],
+                "opening": r[3],
+                "played_on": r[4].isoformat() if r[4] else None,
+                "critical_moves": r[5],
+            }
+            for r in agg["practice_games"]
+        ],
         "replay_limit": REPLAY_LIMIT,
         "overview": {
             "played": games,
@@ -615,6 +648,7 @@ async def build_insights(db: AsyncSession, user: User, filters: Filters) -> dict
                 )
             ],
             "quality_by_month": replay.get("quality_by_month", {}),
+            "time_pressure": replay.get("time_pressure", {}),
             "pieces": replay.get("pieces", []),
             "castling": replay.get("castling", {}),
         },

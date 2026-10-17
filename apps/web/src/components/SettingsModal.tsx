@@ -41,7 +41,7 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-ivory/[0.04]">
+    <label className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-ink/[0.04]">
       <input
         type="checkbox"
         className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
@@ -89,10 +89,10 @@ export default function SettingsModal({ me, onClose }: Props) {
         className="card flex max-h-[85dvh] w-full max-w-lg flex-col shadow-card"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 items-center gap-2 border-b border-ivory/[0.07] px-4 py-3">
+        <header className="flex shrink-0 items-center gap-2 border-b border-line/35 px-4 py-3">
           <h2 className="text-base font-semibold">Settings</h2>
           <button
-            className="ml-auto rounded-lg px-2 py-1 text-muted transition-colors hover:bg-ivory/[0.07] hover:text-ink"
+            className="ml-auto rounded-lg px-2 py-1 text-muted transition-colors hover:bg-ink/[0.07] hover:text-ink"
             onClick={onClose}
             aria-label="Close settings"
           >
@@ -143,7 +143,7 @@ export default function SettingsModal({ me, onClose }: Props) {
                   className="mt-2 block text-xs text-accent underline">Configure engines</a>
               </section>
 
-              <section className="border-t border-ivory/[0.06] pt-3">
+              <section className="border-t border-line/35 pt-3">
                 <p className="eyebrow mb-1">Analysis</p>
 
                 <Row label="Search depth">
@@ -181,7 +181,7 @@ export default function SettingsModal({ me, onClose }: Props) {
                 </p>
               </section>
 
-              <section className="border-t border-ivory/[0.06] pt-2">
+              <section className="border-t border-line/35 pt-2">
                 <Toggle
                   label="Auto-analyse on move"
                   hint="Re-run the engine every time the position changes."
@@ -214,7 +214,7 @@ export default function SettingsModal({ me, onClose }: Props) {
                 onChange={(showVerdictBadge) => updateSettings({ showVerdictBadge })}
               />
 
-              <div className="border-t border-ivory/[0.06] pt-2">
+              <div className="border-t border-line/35 pt-2">
                 <Row label="Piece animation">
                   <div className="seg">
                     {SPEEDS.map((sp) => (
@@ -248,7 +248,7 @@ export default function SettingsModal({ me, onClose }: Props) {
                       className={`rounded-xl p-2 text-left transition-all ${
                         s.boardTheme === t.id
                           ? "bg-accent/15 ring-2 ring-accent"
-                          : "ring-1 ring-ivory/[0.08] hover:ring-ivory/25"
+                          : "ring-1 ring-line/40 hover:ring-line/70"
                       }`}
                     >
                       {/* 4x4 slice of the real board, so the swatch is the thing
@@ -271,7 +271,7 @@ export default function SettingsModal({ me, onClose }: Props) {
                 </div>
               </section>
 
-              <section className="border-t border-ivory/[0.06] pt-2">
+              <section className="border-t border-line/35 pt-2">
                 <Toggle
                   label="Coordinates"
                   hint="File letters and rank numbers on the board edge."
@@ -289,7 +289,7 @@ export default function SettingsModal({ me, onClose }: Props) {
           )}
         </div>
 
-        <footer className="flex shrink-0 items-center gap-2 border-t border-ivory/[0.07] px-4 py-3">
+        <footer className="flex shrink-0 items-center gap-2 border-t border-line/35 px-4 py-3">
           <button className="btn text-xs" onClick={resetSettings}>
             Reset to defaults
           </button>

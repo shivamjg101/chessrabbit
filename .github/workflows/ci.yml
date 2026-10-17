@@ -2,8 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main, 'codex/open-source-local-engines']
+    branches: [main]
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   api:
@@ -27,6 +34,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            apps/api/requirements.txt
+            apps/api/requirements-dev.txt
       - name: Install API deps
         # requirements-dev pulls in requirements plus pytest; installing the
         # runtime file alone is why the tests under apps/api/tests never ran.
@@ -71,6 +82,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/engine/requirements.txt
       - name: Install engine deps + stockfish
         run: |
           sudo apt-get update && sudo apt-get install -y stockfish
@@ -114,6 +127,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
       - name: Install
         working-directory: apps/web
         run: npm ci --no-audit --no-fund

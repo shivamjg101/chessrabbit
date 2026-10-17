@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChessRabbit app lock</title>
+<style>
+  :root { color-scheme:light; font-family:system-ui,sans-serif; background:#EBD9BC; color:#302318; }
+  body { min-height:100vh; margin:0; display:grid; place-items:center; background-image:repeating-linear-gradient(94deg,rgba(255,253,240,.1) 0 1px,transparent 1px 7px,rgba(100,60,28,.04) 7px 8px,transparent 8px 18px); }
+  main { width:min(100% - 3rem,25rem); padding:2rem 0; }
+  h1 { font:normal 2.25rem Georgia,serif; margin:0 0 1rem; }
+  p { color:#604B39; line-height:1.5; }
+  label { display:block; margin:1rem 0 .35rem; font-size:.9rem; }
+  input { box-sizing:border-box; width:100%; border:1px solid #B58C61; border-radius:.5rem; padding:.8rem; background:#FFF8EA; color:#302318; font:inherit; }
+  :focus-visible { outline:2px solid #7B4721; outline-offset:2px; }
+  button { border:0; border-radius:.5rem; padding:.8rem 1rem; font:inherit; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  #submit { width:100%; margin-top:1.25rem; background:#7B4721; color:#FFF8EA; font-weight:700; }
+  #actions { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1rem; }
+  #actions button { background:#F3E4CC; color:#302318; border:1px solid #B58C61; }
+  #message { min-height:1.5rem; color:#A0352A; }
+  [hidden] { display:none!important; }
+</style>
+<main>
+  <h1 id="title">ChessRabbit</h1>
+  <p id="description"></p>
+  <form id="form">
+    <div id="current-row">
+      <label for="current">App password</label>
+      <input id="current" type="password" autocomplete="current-password" required autofocus maxlength="200">
+    </div>
+    <div id="new-row">
+      <label for="new">New password (8 characters minimum)</label>
+      <input id="new" type="password" autocomplete="new-password" minlength="8" maxlength="200">
+      <label for="confirm">Confirm new password</label>
+      <input id="confirm" type="password" autocomplete="new-password" minlength="8" maxlength="200">
+    </div>
+    <button id="submit" type="submit">Continue</button>
+  </form>
+  <p id="message" role="status" aria-live="polite"></p>
+  <div id="actions">
+    <button id="remove" type="button" hidden>Remove app lock</button>
+    <button id="close" type="button" hidden>Lock and close</button>
+  </div>
+  <p id="recovery" hidden>Forgot the password? The Windows user can reset only the app lock. See the desktop guide; your games will be kept.</p>
+  <p>This lock is a privacy screen, not encryption of your game files.</p>
+</main>
+<script src="app-lock-ui.js"></script>
+</html>

@@ -2,6 +2,7 @@ from app.models.models import (
     AdminAudit,
     AnalysisCache,
     AnalysisJob,
+    AnalysisSnapshot,
     Annotation,
     Collection,
     CollectionGame,
@@ -24,7 +25,7 @@ from app.models.models import (
 )
 
 __all__ = [
-    "AdminAudit", "AnalysisCache", "AnalysisJob", "Annotation", "Collection",
+    "AdminAudit", "AnalysisCache", "AnalysisJob", "AnalysisSnapshot", "Annotation", "Collection",
     "CollectionGame", "DailyActiveUser", "EmailToken", "ExternalAccount",
     "Game", "GamePosition", "OpeningTree", "Puzzle", "PuzzleAttempt",
     "RefreshToken", "Repertoire", "Study", "StudyChapter", "StudyMember",

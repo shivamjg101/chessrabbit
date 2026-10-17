@@ -166,11 +166,11 @@ export default function AreaChart({
                 top: `${(geom.y(active.value) / geom.H) * 100}%`,
                 background: color,
                 // 2px surface ring, so the marker reads on top of the fill.
-                boxShadow: "0 0 0 2px #152438",
+                boxShadow: "0 0 0 2px #FFF8EA",
               }}
             />
             <div
-              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border border-ivory/10 bg-panelAlt px-2 py-1 text-[11px] shadow-card"
+              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border border-line/35 bg-panelAlt px-2 py-1 text-[11px] shadow-card"
               style={{
                 left: `${Math.max(12, Math.min(88, (geom.x(hover) / W) * 100))}%`,
                 top: `${Math.max(0, (geom.y(active.value) / geom.H) * 100 - 8)}%`,

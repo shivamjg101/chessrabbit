@@ -15,11 +15,14 @@ Answers are judged server-side so the client can't mark itself correct.
 
 from __future__ import annotations
 
+import io
 from datetime import datetime, timedelta, timezone
 
 import chess
+import chess.pgn
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.bulk import bulk_insert
@@ -27,7 +30,7 @@ from app.core.chess_utils import extract_repertoire
 from app.core.db import get_db
 from app.core.deps import get_current_user
 from app.core.ratelimit import user_rate_limit
-from app.models import Repertoire, TrainingCard, User
+from app.models import Game, Repertoire, TrainingCard, User
 from app.schemas import (
     RepertoireCreate, RepertoireOut, TrainingAnswer, TrainingCardOut, TrainingResult,
 )
@@ -36,6 +39,43 @@ router = APIRouter(tags=["training"])
 
 MAX_CARDS_PER_REPERTOIRE = 2000
 RETRY_MINUTES = 10
+
+
+class FromGamesRequest(BaseModel):
+    color: str = Field(pattern="^(white|black)$")
+    eco: str = Field(pattern=r"^[A-E][0-9]{2}$")
+
+
+def _repertoire_from_games(movetexts: list[str], color: str) -> str:
+    """Most played move on our turns, up to three actual opponent replies."""
+    root: dict = {}
+    for movetext in movetexts:
+        game = chess.pgn.read_game(io.StringIO(movetext))
+        if game is None or game.board().fen() != chess.STARTING_FEN:
+            continue
+        edges = root
+        for move in list(game.mainline_moves())[:16]:
+            edge = edges.setdefault(move.uci(), {"count": 0, "children": {}})
+            edge["count"] += 1
+            edges = edge["children"]
+
+    pgn = chess.pgn.Game()
+    want_white = color == "white"
+
+    def walk(parent: chess.pgn.GameNode, board: chess.Board, edges: dict) -> None:
+        choices = sorted(edges.items(), key=lambda item: item[1]["count"], reverse=True)
+        our_turn = board.turn == want_white
+        for uci, edge in choices[:1 if our_turn else 3]:
+            move = chess.Move.from_uci(uci)
+            if move not in board.legal_moves:
+                continue
+            child = parent.add_variation(move)
+            board.push(move)
+            walk(child, board, edge["children"])
+            board.pop()
+
+    walk(pgn, pgn.board(), root)
+    return pgn.accept(chess.pgn.StringExporter(headers=False, variations=True, comments=False)).strip()
 
 
 @router.post("/repertoires", response_model=RepertoireOut,
@@ -90,6 +130,40 @@ async def create_repertoire(
     return RepertoireOut(
         id=rep.id, name=rep.name, color=rep.color,
         card_count=len(cards), due_count=len(cards),
+    )
+
+
+@router.post("/repertoires/from-games", response_model=RepertoireOut,
+             dependencies=[user_rate_limit("repertoire_from_games", 5, 60)])
+async def repertoire_from_games(
+    payload: FromGamesRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Make an opening drill from the player's own standard games."""
+    rows = await db.execute(
+        select(Game.movetext, Game.opening)
+        .where(
+            Game.owner_id == user.id,
+            Game.variant == "standard",
+            Game.user_color == ("w" if payload.color == "white" else "b"),
+            Game.eco == payload.eco,
+            Game.result != "*",
+            Game.ply_count >= 6,
+        )
+        .order_by(Game.played_on.desc().nullslast(), Game.id.desc())
+        .limit(200)
+    )
+    games = rows.all()
+    if len(games) < 3:
+        raise HTTPException(status_code=400, detail={
+            "code": "not_enough_games", "message": "At least three games with this opening are needed",
+        })
+    pgn = _repertoire_from_games([row[0] for row in games], payload.color)
+    name = next((row[1] for row in games if row[1]), payload.eco)
+    return await create_repertoire(
+        RepertoireCreate(name=f"{name[:70]} from my games", color=payload.color, pgn=pgn),
+        user, db,
     )
 
 
@@ -155,6 +229,9 @@ async def sync_blunder_puzzles(
 
     from app.core.chess_utils import zobrist_of
     from app.models import Annotation, Game
+
+    # Serialize with automatic card generation in the engine worker.
+    await db.execute(text("SELECT pg_advisory_xact_lock(:uid)"), {"uid": user.id})
 
     rows = await db.execute(
         select(Annotation.game_id, Annotation.ply, Annotation.best_uci, Game.movetext)
