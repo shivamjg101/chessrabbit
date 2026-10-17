@@ -5,7 +5,7 @@ let enabled = false;
 
 function message(text, error = false) {
   $("message").textContent = text;
-  $("message").style.color = error ? "#F78A81" : "#A8D8AB";
+  $("message").style.color = error ? "#A0352A" : "#286047";
 }
 
 async function render() {

@@ -60,8 +60,8 @@ export default function StudyChapters({
             onClick={onAdd}
             disabled={busy}
             title="Add a chapter"
-            className="ml-auto rounded border border-ivory/10 px-2 py-0.5 text-xs text-muted
-                       transition-colors hover:bg-ivory/10 hover:text-ink disabled:opacity-40"
+            className="ml-auto rounded border border-line/35 px-2 py-0.5 text-xs text-muted
+                       transition-colors hover:bg-ink/10 hover:text-ink disabled:opacity-40"
           >
             + Add
           </button>
@@ -78,7 +78,7 @@ export default function StudyChapters({
                             transition-colors ${
                               active
                                 ? "bg-accent/[0.18] text-ink"
-                                : "text-muted hover:bg-ivory/[0.06] hover:text-ink"
+                                : "text-muted hover:bg-ink/[0.06] hover:text-ink"
                             }`}
               >
                 {editing === c.id ? (
@@ -119,7 +119,7 @@ export default function StudyChapters({
                       onClick={() => onMove(c.id, -1)}
                       disabled={i === 0 || busy}
                       title="Move up"
-                      className="rounded px-1 text-[11px] hover:bg-ivory/10 disabled:opacity-25"
+                      className="rounded px-1 text-[11px] hover:bg-ink/10 disabled:opacity-25"
                     >
                       ↑
                     </button>
@@ -127,7 +127,7 @@ export default function StudyChapters({
                       onClick={() => onMove(c.id, 1)}
                       disabled={i === chapters.length - 1 || busy}
                       title="Move down"
-                      className="rounded px-1 text-[11px] hover:bg-ivory/10 disabled:opacity-25"
+                      className="rounded px-1 text-[11px] hover:bg-ink/10 disabled:opacity-25"
                     >
                       ↓
                     </button>

@@ -22,7 +22,7 @@ const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
  * engine arrows on the analysis board, which are a suggestion, this arrow is
  * the answer.
  */
-const ANSWER_ARROW = "#3FBFA3";
+const ANSWER_ARROW = "#286047";
 
 type Feedback = (TrainingResult & { answered: string }) | null;
 

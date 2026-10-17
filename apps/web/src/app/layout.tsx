@@ -50,11 +50,10 @@ export const metadata: Metadata = {
     "Drill your openings on a spaced-repetition schedule, find the blunders in your own games, and scout what your next opponent actually plays.",
 };
 
-// One ink world, end to end: tell the browser so form controls and the mobile
-// address bar match the page instead of flashing white.
+// Match native controls and the mobile browser chrome to the oak canvas.
 export const viewport: Viewport = {
-  colorScheme: "dark",
-  themeColor: "#0D1728",
+  colorScheme: "light",
+  themeColor: "#EBD9BC",
 };
 
 export default function RootLayout({

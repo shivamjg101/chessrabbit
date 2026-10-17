@@ -82,7 +82,7 @@ function SavedGame() {
         <section className="card p-4">
           <h2 className="font-display text-xl">Moves</h2>
           <div className="mt-3 flex max-h-72 flex-wrap gap-1 overflow-y-auto">
-            {line?.moves.map((move) => <button key={move.ply} className={`rounded px-2 py-1 font-mono text-xs ${ply === move.ply + 1 ? "bg-accent text-ebony" : "bg-ivory/10 hover:bg-ivory/20"}`} onClick={() => setPly(move.ply + 1)}>
+            {line?.moves.map((move) => <button key={move.ply} className={`rounded px-2 py-1 font-mono text-xs ${ply === move.ply + 1 ? "bg-accent text-ivory" : "bg-ink/10 hover:bg-ink/20"}`} onClick={() => setPly(move.ply + 1)}>
               {move.ply % 2 === 0 ? `${Math.floor(move.ply / 2) + 1}.` : ""}{move.san}
             </button>)}
           </div>

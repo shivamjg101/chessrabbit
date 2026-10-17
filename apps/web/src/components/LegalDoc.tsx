@@ -43,7 +43,7 @@ export default function LegalDoc({
 
       <div className="legal">{children}</div>
 
-      <footer className="mt-12 border-t border-ivory/[0.08] pt-4">
+      <footer className="mt-12 border-t border-line/35 pt-4">
         <nav className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
           <Link href="/terms" className="hover:text-ink hover:underline">
             Terms

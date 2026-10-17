@@ -63,7 +63,7 @@ For visibility reports, verify the URL-prefix property in [Google Search Console
 ## Editing
 
 - `index.html`: homepage, product facts, main download links and SoftwareApplication metadata.
-- `styles.css`: responsive styling, shared with the guides.
+- `styles.css` and `wood-theme.css`: responsive layout and the light oak palette, shared with the guides.
 - `site.js`: opening-position controls.
 - `guides.mjs`: guide text and search metadata.
 - `build.mjs`: dependency-free static generation, shared guide layout, board illustrations, sitemap and URL handling.

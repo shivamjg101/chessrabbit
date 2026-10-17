@@ -262,8 +262,8 @@ function StudyWorkspace() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       <header
-        className="z-40 flex h-14 shrink-0 items-center gap-2 border-b border-[#2F4A6B]
-                   bg-panel/80 px-3 shadow-[0_2px_10px_rgba(12,8,5,0.45)] backdrop-blur-xl"
+        className="z-40 flex h-14 shrink-0 items-center gap-2 border-b border-line/50
+                   bg-panel/90 px-3 shadow-[0_2px_10px_rgba(77,47,24,0.14)] backdrop-blur-xl"
       >
         <button
           className="btn px-2"
@@ -316,7 +316,7 @@ function StudyWorkspace() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {railOpen && (
           <aside
-            className="shrink-0 border-b border-ivory/[0.07] bg-panel/40 lg:h-full lg:w-56
+            className="shrink-0 border-b border-line/35 bg-panel/40 lg:h-full lg:w-56
                        lg:border-b-0 lg:border-r"
           >
             <StudyChapters
@@ -352,7 +352,7 @@ function StudyWorkspace() {
 
         {showShare && canEdit && (
           <aside
-            className="shrink-0 border-t border-ivory/[0.07] bg-panel/60 p-3 lg:h-full lg:w-72
+            className="shrink-0 border-t border-line/35 bg-panel/60 p-3 lg:h-full lg:w-72
                        lg:overflow-y-auto lg:border-l lg:border-t-0"
           >
             <StudyShare

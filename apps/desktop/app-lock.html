@@ -5,19 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ChessRabbit app lock</title>
 <style>
-  :root { color-scheme:dark; font-family:system-ui,sans-serif; background:#0D1728; color:#F2F0EA; }
-  body { min-height:100vh; margin:0; display:grid; place-items:center; }
+  :root { color-scheme:light; font-family:system-ui,sans-serif; background:#EBD9BC; color:#302318; }
+  body { min-height:100vh; margin:0; display:grid; place-items:center; background-image:repeating-linear-gradient(94deg,rgba(255,253,240,.1) 0 1px,transparent 1px 7px,rgba(100,60,28,.04) 7px 8px,transparent 8px 18px); }
   main { width:min(100% - 3rem,25rem); padding:2rem 0; }
   h1 { font:normal 2.25rem Georgia,serif; margin:0 0 1rem; }
-  p { color:#A8B8CC; line-height:1.5; }
+  p { color:#604B39; line-height:1.5; }
   label { display:block; margin:1rem 0 .35rem; font-size:.9rem; }
-  input { box-sizing:border-box; width:100%; border:1px solid #48617C; border-radius:.5rem; padding:.8rem; background:#101E31; color:#F2F0EA; font:inherit; }
+  input { box-sizing:border-box; width:100%; border:1px solid #B58C61; border-radius:.5rem; padding:.8rem; background:#FFF8EA; color:#302318; font:inherit; }
+  :focus-visible { outline:2px solid #7B4721; outline-offset:2px; }
   button { border:0; border-radius:.5rem; padding:.8rem 1rem; font:inherit; cursor:pointer; }
   button:disabled { opacity:.6; cursor:wait; }
-  #submit { width:100%; margin-top:1.25rem; background:#C99C56; color:#101925; font-weight:700; }
+  #submit { width:100%; margin-top:1.25rem; background:#7B4721; color:#FFF8EA; font-weight:700; }
   #actions { display:flex; flex-wrap:wrap; gap:.7rem; margin-top:1rem; }
-  #actions button { background:#24374F; color:#F2F0EA; }
-  #message { min-height:1.5rem; color:#F78A81; }
+  #actions button { background:#F3E4CC; color:#302318; border:1px solid #B58C61; }
+  #message { min-height:1.5rem; color:#A0352A; }
   [hidden] { display:none!important; }
 </style>
 <main>

@@ -47,7 +47,7 @@ export default function VerdictPlate({
 }: Props) {
   if (!verdict) {
     return (
-      <div className="rounded-md bg-panelAlt/70 p-3 ring-1 ring-ivory/[0.06]">
+      <div className="rounded-md bg-panelAlt/70 p-3 ring-1 ring-line/35">
         <p className="text-sm font-semibold text-ink">
           {reviewing
             ? "Scoring every move…"
@@ -77,7 +77,7 @@ export default function VerdictPlate({
   return (
     <div
       key={`${verdict.san}-${verdict.cls}-${verdict.live}`}
-      className="relative animate-rise rounded-md bg-panelAlt/90 p-3 pl-4 ring-1 ring-ivory/[0.08]"
+      className="relative animate-rise rounded-md bg-panelAlt/90 p-3 pl-4 ring-1 ring-line/35"
       style={{ borderLeft: `3px solid ${meta.bg}` }}
     >
       <div className="flex items-center gap-2">
@@ -92,7 +92,7 @@ export default function VerdictPlate({
                 }
               : {
                   background: meta.bg,
-                  color: "#0D1728",
+                  color: "#FFF8EA",
                   fontSize: meta.glyph.length > 1 ? 11 : 13,
                 }
           }

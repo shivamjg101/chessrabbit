@@ -128,7 +128,7 @@ export default function MoreMenu() {
             {GROUPS.map((group, gi) => (
               <div
                 key={group.heading}
-                className={gi > 0 ? "mt-1 border-t border-ivory/[0.06] pt-1" : ""}
+                className={gi > 0 ? "mt-1 border-t border-line/35 pt-1" : ""}
               >
                 <p className="eyebrow px-2 py-1">{group.heading}</p>
                 {group.items.map((item) => (
@@ -137,7 +137,7 @@ export default function MoreMenu() {
                     href={item.href}
                     role="menuitem"
                     onClick={() => setOpen(false)}
-                    className="flex items-start gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-ivory/[0.07]"
+                    className="flex items-start gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-ink/[0.07]"
                   >
                     <span className="min-w-0">
                       <span className="block text-sm">{item.label}</span>

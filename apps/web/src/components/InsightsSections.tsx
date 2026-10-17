@@ -302,7 +302,7 @@ export function PhasesSection({ data }: { data: Insights }) {
           )}
           centerLabel="reviewed"
         />
-        <ul className="mt-4 space-y-1.5 border-t border-ivory/[0.06] pt-3">
+        <ul className="mt-4 space-y-1.5 border-t border-line/35 pt-3">
           {Object.entries(shapes)
             .sort((a, b) => b[1].games - a[1].games)
             .map(([k, t]) => (
@@ -339,7 +339,7 @@ function OpeningTable({ rows }: { rows: OpeningRow[] }) {
               {r.name}
             </div>
             {r.eco && (
-              <span className="rounded bg-ivory/[0.07] px-1 font-mono text-[10px] text-muted">
+              <span className="rounded bg-ink/[0.07] px-1 font-mono text-[10px] text-muted">
                 {r.eco}
               </span>
             )}
@@ -418,7 +418,7 @@ export function MovesSection({ data }: { data: Insights }) {
               const row = q.find((r) => r.cls === cls)!;
               const meta = CLASS_META[cls];
               return (
-                <tr key={cls} className="hover:bg-ivory/[0.04]">
+                <tr key={cls} className="hover:bg-ink/[0.04]">
                   <td className="py-1">
                     <span className="inline-flex items-center gap-1.5">
                       <span
@@ -432,7 +432,7 @@ export function MovesSection({ data }: { data: Insights }) {
                   </td>
                   <td className="py-1">
                     <div className="flex items-center justify-end gap-2">
-                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-ivory/[0.07]">
+                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-ink/[0.07]">
                         <div
                           className="h-full rounded-full"
                           style={{ width: `${row.pct}%`, background: meta.bg }}
@@ -529,7 +529,7 @@ export function MovesSection({ data }: { data: Insights }) {
             centerLabel="castled"
           />
           {castle.side && (
-            <div className="mt-4 flex justify-center gap-6 border-t border-ivory/[0.06] pt-3 text-xs">
+            <div className="mt-4 flex justify-center gap-6 border-t border-line/35 pt-3 text-xs">
               <span>
                 <span className="font-mono font-semibold">{num(castle.side.short ?? 0)}</span>
                 <span className="ml-1.5 text-muted">short (O-O)</span>

@@ -1,0 +1,71 @@
+/* Light oak companion stylesheet. Loaded after the site's compact base CSS. */
+:root {
+  --paper: #EBD9BC;
+  --panel: #FFF8EA;
+  --raise: #E8D1AE;
+  --ink: #302318;
+  --muted: #604B39;
+  --green: #286047;
+  --orange: #7B4721;
+  --line: #B58C61;
+  --sage: #F3E4CC;
+}
+
+body {
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(ellipse at 10% 0%, rgba(255, 249, 227, .55), transparent 62%),
+    repeating-linear-gradient(94deg, rgba(255, 253, 240, .08) 0 1px,
+      transparent 1px 7px, rgba(100, 60, 28, .04) 7px 8px,
+      transparent 8px 18px);
+}
+::selection { background: rgba(123, 71, 33, .24); }
+.header, .footer { border-color: rgba(123, 71, 33, .35); }
+.brand-dot, .header nav a:hover, .footer a:hover { color: var(--orange); }
+.button { background: var(--orange); color: var(--panel); box-shadow: 0 3px 8px rgba(77, 47, 24, .14); }
+.button:hover, .button.small:hover { background: #6D3F1D; }
+.button.small { background: var(--orange); }
+.text-link { border-color: rgba(123, 71, 33, .5); }
+.status-dot, .engine-dot { background: var(--green); }
+.note-mark { color: #936A43; }
+
+.product-preview {
+  background: var(--panel);
+  border-color: rgba(123, 71, 33, .45);
+  box-shadow: 0 22px 48px rgba(77, 47, 24, .2);
+}
+.window-dots { color: #A88A67; }
+.live-label { color: var(--green); }
+.piece-symbol { color: var(--orange); }
+.board-area img { border: 8px solid #704729; box-shadow: 0 6px 18px rgba(69, 39, 18, .25); }
+.eval-strip { background: var(--ink); }
+.eval-strip span { background: var(--panel); }
+.pill { background: var(--sage); }
+.move-controls button[aria-pressed=true] { background: var(--orange); color: var(--panel); }
+.move-controls button:hover { border-color: var(--orange); }
+
+.proof-strip { background: #F3E4CC; }
+.proof-inner > span { color: var(--green); }
+.feature { border-color: var(--line); }
+.mini-line span, .mini-tree span { background: var(--panel); border-color: var(--line); }
+.mini-line .highlight, .mini-days .highlight { background: var(--orange); border-color: var(--orange); color: var(--panel); }
+.mini-tree i, .mini-tree div { border-color: var(--line); background-color: var(--line); }
+.mini-tree div { background: transparent; }
+.engine-section { background: #704729; color: var(--panel); }
+.engine-layout .eyebrow, .engine-layout p, .engine-list p, .engine-list .engine-footnote { color: #F2DFC4; }
+.engine-layout h2 em, .engine-icon, .tag { color: #FFE8BD; }
+.engine-list article, .engine-list article:first-child { border-color: rgba(255, 240, 210, .33); }
+.tag { border-color: rgba(255, 240, 210, .45); }
+.light:hover { color: #FFF8EA; }
+.steps li + li { border-color: var(--line); }
+.steps li > span { color: var(--orange); }
+.guide { border-color: var(--line); background: rgba(255, 248, 234, .46); }
+.guide:hover { background: var(--panel); }
+.download { background: var(--panel); border-color: var(--line); box-shadow: 0 12px 30px rgba(77, 47, 24, .1); }
+.download-art { background: repeating-conic-gradient(#9A7550 0% 25%, #E4D9C4 0% 50%) 50% / 70px 70px; }
+.download-art > span { color: var(--ink); text-shadow: 5px 6px 0 #C7AA80; }
+.download-art i { background: var(--panel); border-color: var(--line); }
+.skip { background: var(--orange); color: var(--panel); }
+.article-body .callout { background: var(--panel); border-color: var(--orange); }
+.article-body pre { background: var(--panel); }
+.article-body th { color: var(--orange); }

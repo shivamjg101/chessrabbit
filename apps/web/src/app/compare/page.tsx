@@ -161,7 +161,7 @@ function SnapshotCard({ snapshot }: { snapshot: AnalysisSnapshot }) {
         <span className="font-mono text-lg">{top ? score(top) : "—"}</span>
       </div>
       <p className="mt-1 text-sm text-muted">{top ? sanLine(snapshot.fen, top.pv, 8) : "No line"}</p>
-      {snapshot.note && <p className="mt-3 border-t border-ivory/10 pt-2 text-sm">Your thought: {snapshot.note}</p>}
+      {snapshot.note && <p className="mt-3 border-t border-line/35 pt-2 text-sm">Your thought: {snapshot.note}</p>}
       <p className="mt-3 text-[11px] text-faint">
         Depth {snapshot.depth} · {new Date(snapshot.created_at).toLocaleString()} · profile {snapshot.engine_cache_key}
       </p>

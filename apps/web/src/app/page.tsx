@@ -52,21 +52,20 @@ function HeroBoard() {
           return (
             <div
               key={i}
-              className="grid place-items-center"
-              style={{ background: dark ? "#4A737E" : "#DCD9CC" }}
+              className={`grid place-items-center ${dark ? "bg-board-dark" : "bg-board-light"}`}
             >
               {piece && (
                 <span
                   className="select-none leading-none"
                   style={{
                     fontSize: "min(7.2vw, 38px)",
-                    color: white ? "#FBFAF6" : "#16202F",
+                    color: white ? "#FBFAF6" : "#302318",
                     // The pieces are one flat glyph each, so the only thing
                     // separating a white piece from a light square is this
                     // outline. Without it the back rank disappears.
                     textShadow: white
-                      ? "0 0 1px #16202F, 0 1px 2px rgba(3,8,18,0.5)"
-                      : "0 1px 2px rgba(3,8,18,0.3)",
+                      ? "0 0 1px #302318, 0 1px 2px rgba(48,35,24,0.5)"
+                      : "0 1px 2px rgba(48,35,24,0.3)",
                   }}
                 >
                   {GLYPH[piece.toLowerCase()]}

@@ -253,7 +253,7 @@ export default function ClockDrillPage() {
       )}
 
       {phase === "idle" && (
-        <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-8 text-center space-y-3 max-w-xl mx-auto">
+        <div className="bg-panelAlt/60 border border-line/35 rounded-xl p-8 text-center space-y-3 max-w-xl mx-auto">
           <p className="text-2xl font-display">One clock. Ten puzzles.</p>
           <p className="text-muted">
             3:00 for {ROUNDS} puzzles and the difficulties are hidden and wildly
@@ -268,7 +268,7 @@ export default function ClockDrillPage() {
 
       {phase === "done" && (
         <div className="max-w-xl mx-auto space-y-4">
-          <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-6 text-center">
+          <div className="bg-panelAlt/60 border border-line/35 rounded-xl p-6 text-center">
             <p className="text-2xl font-display">
               {solved} / {ROUNDS} solved
             </p>
@@ -279,7 +279,7 @@ export default function ClockDrillPage() {
             </p>
           </div>
 
-          <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4">
+          <div className="bg-panelAlt/60 border border-line/35 rounded-xl p-4">
             <table className="w-full text-sm">
               <thead className="text-muted text-xs">
                 <tr>
@@ -304,7 +304,7 @@ export default function ClockDrillPage() {
             </table>
           </div>
 
-          <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4 space-y-1">
+          <div className="bg-panelAlt/60 border border-line/35 rounded-xl p-4 space-y-1">
             {advice().map((a) => (
               <p key={a} className="text-sm">{a}</p>
             ))}
@@ -333,10 +333,10 @@ export default function ClockDrillPage() {
           </div>
 
           <aside className="flex-1 space-y-3 min-w-[260px]">
-            <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4">
+            <div className="bg-panelAlt/60 border border-line/35 rounded-xl p-4">
               <p className="text-lg font-semibold flex items-center gap-2">
                 <span
-                  className={`w-4 h-4 rounded-full border border-ivory/40 ${
+                  className={`w-4 h-4 rounded-full border border-line/40 ${
                     orientation === "white" ? "bg-white" : "bg-black"
                   }`}
                 />

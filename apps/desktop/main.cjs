@@ -226,7 +226,7 @@ async function chooseTablebases() {
 function openLockSettings() {
   if (!origin || lockWindow) { lockWindow?.focus(); return; }
   lockWindow = new BrowserWindow({ parent: window, modal: true, width: 480, height: 610,
-    minWidth: 420, minHeight: 540, title: "ChessRabbit app lock", backgroundColor: "#0D1728",
+    minWidth: 420, minHeight: 540, title: "ChessRabbit app lock", backgroundColor: "#EBD9BC",
     autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   });
@@ -276,7 +276,7 @@ function setMenu() {
 async function start() {
   setMenu();
   window = new BrowserWindow({ width: 1400, height: 920, minWidth: 760, minHeight: 600,
-    show: !smoke, title: "ChessRabbit", backgroundColor: "#0e1929",
+    show: !smoke, title: "ChessRabbit", backgroundColor: "#EBD9BC",
     webPreferences: { preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   });

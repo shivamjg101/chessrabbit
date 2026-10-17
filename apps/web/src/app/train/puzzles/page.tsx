@@ -331,7 +331,7 @@ export default function PuzzlesPage() {
             key={m}
             onClick={() => switchMode(m)}
             className={`px-3 py-1 rounded ${
-              mode === m ? "bg-accent text-black font-semibold" : "bg-panelAlt text-muted hover:text-ink"
+              mode === m ? "bg-accent text-ivory font-semibold" : "bg-panelAlt text-muted hover:text-ink"
             }`}
           >
             {m === "practice" ? "Practice" : "Puzzle Rush"}
@@ -420,7 +420,7 @@ export default function PuzzlesPage() {
             <div className="bg-panelAlt rounded p-4">
               <p className="text-lg font-semibold flex items-center gap-2">
                 <span
-                  className={`w-4 h-4 rounded-full border border-ivory/40 ${
+                  className={`w-4 h-4 rounded-full border border-line/40 ${
                     orientation === "white" ? "bg-white" : "bg-black"
                   }`}
                 />
@@ -506,7 +506,7 @@ export default function PuzzlesPage() {
               {puzzle.themes.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {puzzle.themes.map((t) => (
-                    <span key={t} className="bg-ivory/5 rounded px-1.5 py-0.5">{t}</span>
+                    <span key={t} className="bg-ink/5 rounded px-1.5 py-0.5">{t}</span>
                   ))}
                 </div>
               )}

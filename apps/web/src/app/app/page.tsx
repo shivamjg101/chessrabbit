@@ -44,8 +44,8 @@ const MOBILE_NAV = [
 /** Colour a result the way a scoreboard would: the winning side's own piece. */
 function resultTone(result: string): string {
   if (result === "1-0") return "bg-ivory text-ebony";
-  if (result === "0-1") return "bg-ebony text-ink ring-1 ring-ivory/25";
-  return "bg-ivory/10 text-muted";
+  if (result === "0-1") return "bg-ebony text-ivory ring-1 ring-ivory/25";
+  return "bg-ink/10 text-muted";
 }
 
 function AppWorkspace() {
@@ -316,7 +316,7 @@ function AppWorkspace() {
       <div className="flex shrink-0 items-center gap-2 px-3 py-2.5">
         <span className="eyebrow">My games</span>
         {!gamesLoading && !gamesError && (
-          <span className="rounded-full bg-ivory/[0.07] px-1.5 py-0.5 font-mono text-[10px] text-muted">
+          <span className="rounded-full bg-ink/[0.07] px-1.5 py-0.5 font-mono text-[10px] text-muted">
             {games.length} shown
           </span>
         )}
@@ -373,7 +373,7 @@ function AppWorkspace() {
                   className={`w-full rounded-lg p-2 text-left transition-colors ${
                     active
                       ? "bg-accent/15 ring-1 ring-accent/40"
-                      : "hover:bg-ivory/[0.06]"
+                      : "hover:bg-ink/[0.06]"
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
@@ -391,7 +391,7 @@ function AppWorkspace() {
                   <div className="mt-0.5 flex gap-1.5 text-[10px] text-muted">
                     {g.variant === "chess960" && <span className="rounded bg-accent/15 px-1 text-accent">Chess960</span>}
                     {g.eco && (
-                      <span className="rounded bg-ivory/[0.07] px-1">{g.eco}</span>
+                      <span className="rounded bg-ink/[0.07] px-1">{g.eco}</span>
                     )}
                     {g.opening && <span className="truncate">{g.opening}</span>}
                     {!g.opening && g.played_on && <span>{g.played_on}</span>}
@@ -413,11 +413,10 @@ function AppWorkspace() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       {/* ---------- Top bar ---------- */}
-      {/* The top bar is the one piece of chrome on every screen, so it carries
-          the grain: it reads as the edge of the table the board sits on. */}
+      {/* A cream header with a restrained walnut edge. */}
       <header
-        className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-[#2F4A6B]
-                   bg-panel/80 px-3 shadow-[0_2px_10px_rgba(12,8,5,0.45)] backdrop-blur-xl"
+        className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-line/50
+                   bg-panel/90 px-3 shadow-[0_2px_10px_rgba(77,47,24,0.14)] backdrop-blur-xl"
       >
         <button
           ref={gamesToggleRef}
@@ -461,7 +460,7 @@ function AppWorkspace() {
             onClick={() => setSettingsOpen(true)}
             title="Analysis settings"
             aria-label="Analysis settings"
-            className="rounded-lg px-2 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/[0.07] hover:text-ink"
+            className="rounded-lg px-2 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ink/[0.07] hover:text-ink"
           >
             ⚙
           </button>
@@ -470,7 +469,7 @@ function AppWorkspace() {
               {me.analyses_today}/{me.daily_limit} today
             </span>
           )}
-          <span className="chip hidden bg-ivory/10 text-muted lg:inline-flex">{me.local_mode ? "Local" : "Community"}</span>
+          <span className="chip hidden bg-ink/10 text-muted lg:inline-flex">{me.local_mode ? "Local" : "Community"}</span>
           <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
@@ -486,7 +485,7 @@ function AppWorkspace() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="card absolute right-0 top-full z-50 mt-2 w-60 p-1.5 shadow-card">
-                  <div className="mb-1 border-b border-ivory/[0.06] px-3 py-2">
+                  <div className="mb-1 border-b border-line/35 px-3 py-2">
                     <p className="truncate text-sm font-medium">
                       {me.display_name || me.email}
                     </p>
@@ -498,42 +497,42 @@ function AppWorkspace() {
                   </div>
                   {/* On a phone there is no room for the nav pills or the
                       More menu, so every destination appears here instead. */}
-                  <div className="mb-1 border-b border-ivory/[0.06] pb-1 lg:hidden">
+                  <div className="mb-1 border-b border-line/35 pb-1 lg:hidden">
                     {MOBILE_NAV.map((n) => (
                       <Link
                         key={n.href}
                         href={n.href}
-                        className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                        className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ink/[0.06]"
                       >
                         {n.label}
                       </Link>
                     ))}
                   </div>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ink/[0.06]"
                     onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}
                   >
                     Analysis settings
                   </button>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ink/[0.06]"
                     onClick={() => { setMenuOpen(false); setImportOpen(true); }}
                   >
                     Import PGN
                   </button>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ink/[0.06]"
                     onClick={() => { setMenuOpen(false); openAccounts(); }}
                   >
                     Connected accounts
                   </button>
 
                   {me.local_mode ? (
-                    <p className="border-t border-ivory/[0.06] px-3 py-2 text-xs text-muted">No account needed. Use File → App lock to add an optional password.</p>
+                    <p className="border-t border-line/35 px-3 py-2 text-xs text-muted">No account needed. Use File → App lock to add an optional password.</p>
                   ) : (
                     <>
-                      <Link href="/download" className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ivory/[0.06]">Download and setup</Link>
-                      <button className="mt-1 w-full rounded-lg border-t border-ivory/[0.06] px-3 py-1.5 pt-2 text-left text-sm text-bad hover:bg-bad/10" onClick={signOut}>Sign out</button>
+                      <Link href="/download" className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ink/[0.06]">Download and setup</Link>
+                      <button className="mt-1 w-full rounded-lg border-t border-line/35 px-3 py-1.5 pt-2 text-left text-sm text-bad hover:bg-bad/10" onClick={signOut}>Sign out</button>
                     </>
                   )}
                 </div>
@@ -557,7 +556,7 @@ function AppWorkspace() {
         {/* Games rail - static on desktop, drawer on mobile */}
         <aside
           id="games-rail"
-          className={`hidden w-[264px] shrink-0 border-r border-ivory/[0.07] bg-panel/40
+          className={`hidden w-[264px] shrink-0 border-r border-line/35 bg-panel/40
                       backdrop-blur-xl lg:block ${railOpen ? "" : "lg:hidden"}`}
         >
           {gamesRail}
@@ -569,7 +568,7 @@ function AppWorkspace() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={closeDrawer}
             />
-            <aside id="games-drawer" role="dialog" aria-modal="true" aria-label="My games" className="absolute inset-y-0 left-0 w-[280px] animate-rise border-r border-ivory/10 bg-panel shadow-card">
+            <aside id="games-drawer" role="dialog" aria-modal="true" aria-label="My games" className="absolute inset-y-0 left-0 w-[280px] animate-rise border-r border-line/35 bg-panel shadow-card">
               {gamesRail}
             </aside>
           </div>
