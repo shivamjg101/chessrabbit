@@ -48,7 +48,7 @@ export default function PlayerPlate({ name, elo, side, score, toMove }: Props) {
   return (
     <div
       className={`flex h-8 min-w-0 items-center gap-2 rounded-lg px-1.5 transition-colors ${
-        toMove ? "bg-ivory/[0.07] ring-1 ring-accent/35" : ""
+        toMove ? "bg-ink/[0.07] ring-1 ring-accent/35" : ""
       }`}
     >
       {/* The avatar doubles as the colour swatch: no photo to show, but which
@@ -57,7 +57,7 @@ export default function PlayerPlate({ name, elo, side, score, toMove }: Props) {
         className={`grid h-6 w-6 shrink-0 place-items-center rounded-md text-[11px] font-bold ${
           side === "white"
             ? "bg-gradient-to-b from-white to-ivory text-ebony"
-            : "bg-ebony text-ink ring-1 ring-ivory/25"
+            : "bg-ebony text-ivory ring-1 ring-ivory/25"
         }`}
         aria-hidden
       >
@@ -75,7 +75,7 @@ export default function PlayerPlate({ name, elo, side, score, toMove }: Props) {
       {score != null && (
         <span
           className={`ml-auto shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
-            score === 1 ? "bg-good/20 text-good" : "bg-ivory/[0.08] text-muted"
+            score === 1 ? "bg-good/20 text-good" : "bg-ink/[0.08] text-muted"
           }`}
           title={score === 1 ? "Won" : score === 0 ? "Lost" : "Drawn"}
         >

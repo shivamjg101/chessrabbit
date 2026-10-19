@@ -83,7 +83,7 @@ function FindingsBand({
         : "sm:grid-cols-2 lg:grid-cols-3";
 
   return (
-    <section className="border-b border-ivory/[0.07] bg-panelAlt/25">
+    <section className="border-b border-line/35 bg-panelAlt/25">
       <div className="mx-auto max-w-6xl px-3 py-4">
         <p className="rule-label mb-3">What your games say</p>
         <div className={`grid gap-px overflow-hidden rounded-md bg-line/40 ${cols}`}>
@@ -98,7 +98,7 @@ function FindingsBand({
               onClick={() => onJump(f.section)}
               className="bg-night p-3 pl-4 text-left transition-colors hover:bg-panelAlt/60"
               style={{
-                borderLeft: `3px solid ${f.tone === "bad" ? "#F2604E" : "#3FBFA3"}`,
+                borderLeft: `3px solid ${f.tone === "bad" ? "#A0352A" : "#286047"}`,
               }}
             >
               <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
@@ -185,7 +185,7 @@ export default function InsightsPage() {
   return (
     <div className="min-h-dvh">
       {/* ---------- Header ---------- */}
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-ivory/[0.07] bg-panel/70 px-3 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-line/35 bg-panel/70 px-3 backdrop-blur-xl">
         <Link href="/app" className="btn px-2" aria-label="Back to the board">
           ←
         </Link>
@@ -229,7 +229,7 @@ export default function InsightsPage() {
           screen before a single chart appeared, which on a phone is a fifth of
           the viewport spent on controls you set once and then leave alone. The
           header stays pinned; the filters scroll away with the page. */}
-      <div className="border-b border-ivory/[0.07] bg-panel/40 px-3 py-2.5">
+      <div className="border-b border-line/35 bg-panel/40 px-3 py-2.5">
         <div className="mx-auto max-w-6xl space-y-2">
           <SubjectPicker subject={subject} onChange={setSubject} />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -251,6 +251,24 @@ export default function InsightsPage() {
           left for the reader to work out by scanning six of them. */}
       {data && <FindingsBand data={data} onJump={setSection} />}
 
+      {subject.kind === "me" && data && data.practice_games && data.practice_games.length > 0 && (
+        <section className="mx-auto max-w-6xl px-3 pt-5">
+          <h2 className="font-display text-xl">Practise positions from your games</h2>
+          <p className="mt-1 text-sm text-muted">Guess the better move before revealing the engine review.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {data.practice_games.map((game) => (
+              <Link key={game.id} href={`/train/review?game=${game.id}`} className="card p-3 hover:border-brass/50">
+                <p className="truncate text-sm font-medium">{game.white} vs {game.black}</p>
+                <p className="mt-1 truncate text-xs text-muted">
+                  {game.opening || game.played_on || "Reviewed game"} · {game.critical_moves} critical moves
+                </p>
+                <span className="mt-2 inline-block text-xs text-brassLit">Test yourself →</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Rail first in the source and on the left at desktop width: it is this
           page's primary navigation, and it used to sit on the right where it
           was read last. */}
@@ -268,7 +286,7 @@ export default function InsightsPage() {
                 className={`flex shrink-0 items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors lg:w-full ${
                   section === s.id
                     ? "bg-brass/15 text-brassLit ring-1 ring-brass/40"
-                    : "text-muted hover:bg-ivory/[0.06] hover:text-ink"
+                    : "text-muted hover:bg-ink/[0.06] hover:text-ink"
                 }`}
               >
                 {s.label}
@@ -277,7 +295,7 @@ export default function InsightsPage() {
           </nav>
 
           {data && (
-            <div className="mt-3 hidden rounded-xl border border-ivory/[0.06] bg-panelAlt/50 p-3 text-[11px] leading-relaxed text-muted lg:block">
+            <div className="mt-3 hidden rounded-xl border border-line/35 bg-panelAlt/50 p-3 text-[11px] leading-relaxed text-muted lg:block">
               {data.engine_metrics === false ? (
                 <p>
                   Built from{" "}
@@ -471,7 +489,7 @@ function SubjectPicker({
                 {matches.map((m) => (
                   <li key={m.name}>
                     <button
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-ivory/[0.06]"
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-ink/[0.06]"
                       onClick={() => {
                         setText(m.name);
                         submit(m.name);

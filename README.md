@@ -4,11 +4,11 @@ Free desktop chess analysis and training for Windows. ChessRabbit runs on your c
 
 [Visit the ChessRabbit website](https://shivamjg101.github.io/chessrabbit/) for an introduction, downloads, and guides to Stockfish, offline analysis, and PGN game review.
 
-See [product facts and compatibility](https://shivamjg101.github.io/chessrabbit/about/) for supported platforms, requirements, use cases, and release limitations. [Machine-readable product data](https://shivamjg101.github.io/chessrabbit/product.json) is also available. The Windows 0.1.2 download is currently marked as a prerelease.
+See [product facts and compatibility](https://shivamjg101.github.io/chessrabbit/about/) for supported platforms, requirements, use cases, and release limitations. [Machine-readable product data](https://shivamjg101.github.io/chessrabbit/product.json) is also available. The public Windows download is the 0.1.2 prerelease; the desktop source and locally built installer are version 0.1.4.
 
 ![ChessRabbit preview](docs/assets/chessrabbit-social-preview.svg)
 
-[Download ChessRabbit-Setup.exe](https://github.com/shivamjg101/chessrabbit/releases/download/desktop-v0.1.2/ChessRabbit-Setup.exe) · [Read the desktop guide](docs/DESKTOP.md) · [Support the project](https://buymeacoffee.com/shivamjg101)
+[Download published 0.1.2 installer](https://github.com/shivamjg101/chessrabbit/releases/download/desktop-v0.1.2/ChessRabbit-Setup.exe) · [Read the desktop guide](docs/DESKTOP.md) · [Support the project](https://buymeacoffee.com/shivamjg101)
 
 If ChessRabbit helps your training, please star this repo so more chess players can find it.
 
@@ -28,7 +28,9 @@ Joining us during October? Read our [Hacktoberfest 2026 contribution guide](docs
 
 ## Install on Windows
 
-Download [ChessRabbit-Setup.exe](https://github.com/shivamjg101/chessrabbit/releases/download/desktop-v0.1.2/ChessRabbit-Setup.exe), run it, and open **ChessRabbit** from the desktop or Start menu. Windows 10/11 x64 is supported.
+Download the [published 0.1.2 installer](https://github.com/shivamjg101/chessrabbit/releases/download/desktop-v0.1.2/ChessRabbit-Setup.exe), run it, and open **ChessRabbit** from the desktop or Start menu. Windows 10/11 x64 is supported. To install a locally built 0.1.4 version, use `dist/windows/ChessRabbit-Setup.exe` after following the [build instructions](docs/DESKTOP.md#build-the-installer); this local file is not a published GitHub release.
+
+To update an existing installation, close ChessRabbit, save an encrypted backup and its recovery key, then run the newer installer under the same Windows user account. The installer preserves your local games and settings; database migrations run when the updated app starts. Keep the recovery key separately. The app does not update itself automatically.
 
 Use **Engines → Add Leela Chess Zero** to select your local `lc0.exe` and network, or **Add UCI engine** for another engine. Then choose it in Analysis settings. See the [desktop guide](docs/DESKTOP.md) for data, engines, backups and building the installer. If Windows warns on download, see [Windows security notes](docs/WINDOWS_SECURITY.md).
 
@@ -45,7 +47,7 @@ See also the Leela-specific installation and analysis steps below. Its engine an
 | Internet | Required for download and online imports | Optional after install for local PGN analysis |
 | Graphics | Any standard Windows display | Dedicated GPU only if you plan to run GPU Leela |
 
-ChessRabbit includes Stockfish, so no separate chess engine is required for basic analysis. Leela Chess Zero, neural-network files, Syzygy tablebases and large reference datasets are optional separate downloads.
+The locally built desktop version includes Stockfish and 1,200 offline starter puzzles. Leela Chess Zero, neural-network files, Syzygy tablebases and large reference datasets are optional separate downloads.
 
 ## Leela Chess Zero: install and analyse
 
@@ -71,9 +73,9 @@ The ready message confirms engine registration. Analyse one position next to che
 
 ### Analyse with Leela Chess Zero
 
-1. In **Analysis settings → Engine**, confirm **Leela Chess Zero** is selected. Start with **Number of lines: 1** and **Search depth: 12**, the lowest offered depth, for a quick compatibility check. Increase settings only after confirming acceptable response times on your computer.
+1. In **Analysis settings → Engine**, confirm **Leela Chess Zero** is selected. Start with **Number of lines: 1** and **Live analysis depth: 12**, the lowest offered depth, for a quick compatibility check. Increase settings only after confirming acceptable response times on your computer.
 2. Open a game or play a few moves on the board. Enable **Auto-analyse on move** in Settings, or **Auto** in the board's **Engine** tab. Move to a position and wait for an evaluation and a candidate line. Click a candidate line to put it on the board as a variation.
-3. For a **full-game review**, use **Import PGN**, paste the game's PGN text, import it, and open the imported game from your library. In **Report**, select **Review this game**. The job uses the engine selected when you start it. A study or an unsaved board does not have this full-game review button.
+3. For a **full-game review**, use **Import PGN**, paste the game's PGN text, import it, and open the imported game from your library. In **Report**, select **Review this game**. The job uses the engine and **Game review depth** selected in Analysis settings when you start it. Review depth defaults to 18 for faster reviews and can be raised for deeper analysis. A study or an unsaved board does not have this full-game review button.
 4. If the game already has a Stockfish review, changing the engine does not recompute it. Select Leela, then use **Re-run review** to replace the game's displayed review with the new results. Save notes you want to retain before comparing engines.
 5. Read the candidate continuations and the report together. Return to the same position with Stockfish selected if you want a second engine's view. Do not treat different engines' depth or nodes-per-second figures as equivalent measures of analysis quality.
 
@@ -92,7 +94,7 @@ For Docker or advanced engine profiles, use the separate [local setup guide](doc
 
 ## Release Files
 
-The current release includes:
+The published 0.1.2 release includes:
 
 - `ChessRabbit-Setup.exe` - Windows installer.
 - `ChessRabbit-Source.zip` - corresponding source archive.
@@ -123,16 +125,25 @@ To stop the app and keep your data: `docker compose down`.
 
 ## Features
 
+The following describes the 0.1.4 desktop source/build; the linked public 0.1.2 installer predates some of these changes.
+
 - Live position analysis with selectable depth and candidate lines.
 - Full-game reviews, move annotations, accuracy and mistake training.
+- Interactive mistake replay, personal blunder cards and puzzles generated from reviewed games.
+- Personal practice trends, time-pressure splits and opening drills built from your own games.
+- Side-by-side engine comparison with saved evaluation notes and engine provenance.
+- Chess960 play, PGN import/export, saved-game replay and variant-aware full-game review.
 - PGN import/export, collections, opening explorer and reference search.
-- Studies with variations, comments and board annotations.
+- Studies with variations, comments, board annotations, multi-chapter PGN import/export and chapter duplication.
 - Opening repertoires, spaced repetition, puzzles and opponent preparation.
-- Optional Lichess/Chess.com imports and public player insights.
+- Public Lichess/Chess.com game imports by username, without a platform or ChessRabbit sign-in, and public player insights.
+- Direct access to the desktop board, with an optional password app lock in **File → App lock**. The lock is not file encryption.
 
-Every feature is available to every account. Resource limits apply equally to protect the machine running the app. There are no paid plans, billing routes, subscription checks or license keys.
+Desktop features do not require a ChessRabbit account. Self-hosted deployments can use accounts; resource limits protect the machine running the app. There are no paid plans, billing routes, subscription checks or license keys.
 
-Your desktop games and results are stored in `%APPDATA%/ChessRabbit/local`. Docker deployments use local volumes. A new install starts with an empty personal/reference database. Reference games, puzzles, neural networks and Syzygy tablebases are optional datasets installed separately.
+To bring in a Lichess study, download its **Study PGN**, create a ChessRabbit study, then use **Import** in the chapter rail. Each PGN game becomes a chapter. Use **Copy** beside a chapter to branch from its last saved version.
+
+Your desktop games and results are stored in `%APPDATA%/ChessRabbit/local`. Docker deployments use local volumes. A fresh install built from this source starts with an empty personal/reference database and 1,200 public starter puzzles. Reference games, larger puzzle datasets, neural networks and Syzygy tablebases remain optional separate downloads.
 
 ## Community and legal
 
@@ -162,7 +173,9 @@ The browser calls the local API; the API queues jobs for a selected engine. Work
 
 See [Development](docs/DEVELOPMENT_GUIDE.md), [Architecture](BLUEPRINT.md) and [Contributing](CONTRIBUTING.md).
 
-Existing installations must apply `db/migrations/016_community_edition.sql` before running this branch. Back up first. Older subscription records are retained as inert historical tables; no runtime code reads or writes them. Schema changes only run automatically on a fresh database volume.
+Existing Docker installations must apply migrations `016_community_edition.sql` through `019_game_variants.sql` in order before running this branch. Back up first. The Windows desktop applies new migrations automatically at startup. Older subscription records are retained as inert historical tables; no runtime code reads or writes them. Schema changes only run automatically on a fresh Docker database volume.
+
+Chess960 games can be imported, saved from the Chess960 workspace, replayed and reviewed. They do not enter the standard opening explorer, repertoire builder, personal blunder cards or personal puzzles. Folder sync is a daily encrypted snapshot to a selected folder, not a two-way merge; retain the recovery key separately. Personal puzzles are generated from sufficiently long engine continuations after blunders, not guaranteed tactical motifs.
 
 ## License
 

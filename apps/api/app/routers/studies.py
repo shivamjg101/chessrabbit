@@ -38,6 +38,7 @@ from app.core.ratelimit import user_rate_limit
 from app.models import Game, Study, StudyChapter, StudyMember, User
 from app.schemas import (
     ChapterCreate,
+    ChapterImportRequest,
     ChapterOrder,
     ChapterOut,
     ChapterUpdate,
@@ -438,6 +439,7 @@ async def create_chapter(
     db: AsyncSession = Depends(get_db),
 ):
     study = await _require_write(db, ref, user)
+    await db.execute(select(Study.id).where(Study.id == study.id).with_for_update())
 
     count = await db.execute(
         select(func.count(StudyChapter.id)).where(StudyChapter.study_id == study.id)
@@ -482,6 +484,114 @@ async def create_chapter(
     )
     db.add(chapter)
     # Adding a chapter is a change to the study, and the listing sorts on it.
+    _touch(study)
+    await db.commit()
+    await db.refresh(chapter)
+    return chapter
+
+
+@router.post(
+    "/{ref}/chapters/import",
+    response_model=list[ChapterOut],
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_chapters(
+    ref: str,
+    payload: ChapterImportRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add all chapters from a PGN export in one transaction."""
+    study = await _require_write(db, ref, user)
+    await db.execute(select(Study.id).where(Study.id == study.id).with_for_update())
+    count = await db.execute(
+        select(func.count(StudyChapter.id)).where(StudyChapter.study_id == study.id)
+    )
+    if count.scalar_one() + len(payload.chapters) > settings.MAX_CHAPTERS_PER_STUDY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "chapter_limit_reached",
+                "message": f"A study holds {settings.MAX_CHAPTERS_PER_STUDY} chapters. "
+                           "Start a second study.",
+            },
+        )
+
+    # Validate every start position before writing any chapter.
+    for item in payload.chapters:
+        try:
+            validate_fen(item.starting_fen or START_FEN)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "invalid_fen", "message": "That starting position is not legal"},
+            ) from None
+
+    last = await db.execute(
+        select(func.max(StudyChapter.position)).where(StudyChapter.study_id == study.id)
+    )
+    position = last.scalar_one() or 0
+    chapters = []
+    for item in payload.chapters:
+        position += POSITION_STEP
+        chapter = StudyChapter(
+            study_id=study.id,
+            name=item.name,
+            description=item.description,
+            pgn=item.pgn,
+            starting_fen=item.starting_fen or START_FEN,
+            orientation=item.orientation,
+            position=position,
+        )
+        db.add(chapter)
+        chapters.append(chapter)
+
+    _touch(study)
+    await db.commit()
+    for chapter in chapters:
+        await db.refresh(chapter)
+    return chapters
+
+
+@router.post(
+    "/{ref}/chapters/{chapter_id}/duplicate",
+    response_model=ChapterOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_chapter(
+    ref: str,
+    chapter_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    study = await _require_write(db, ref, user)
+    await db.execute(select(Study.id).where(Study.id == study.id).with_for_update())
+    source = await _chapter(db, study, chapter_id)
+    count = await db.execute(
+        select(func.count(StudyChapter.id)).where(StudyChapter.study_id == study.id)
+    )
+    if count.scalar_one() >= settings.MAX_CHAPTERS_PER_STUDY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "chapter_limit_reached",
+                "message": f"A study holds {settings.MAX_CHAPTERS_PER_STUDY} chapters. "
+                           "Start a second study.",
+            },
+        )
+    last = await db.execute(
+        select(func.max(StudyChapter.position)).where(StudyChapter.study_id == study.id)
+    )
+    chapter = StudyChapter(
+        study_id=study.id,
+        name=f"{source.name[:113]} (copy)",
+        description=source.description,
+        pgn=source.pgn,
+        starting_fen=source.starting_fen,
+        orientation=source.orientation,
+        position=(last.scalar_one() or 0) + POSITION_STEP,
+    )
+    db.add(chapter)
     _touch(study)
     await db.commit()
     await db.refresh(chapter)

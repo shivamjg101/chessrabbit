@@ -92,7 +92,7 @@ export default function NotesPane({
             ? "Nothing was written about this position."
             : "What is going on here, and why does the next move follow from it?"
         }
-        className="w-full resize-y rounded-lg border border-ivory/10 bg-ivory/[0.04] px-2.5 py-2
+        className="w-full resize-y rounded-lg border border-line/35 bg-ink/[0.04] px-2.5 py-2
                    text-xs leading-relaxed text-ink placeholder:text-muted
                    focus:border-accent/40 focus:outline-none read-only:opacity-70"
       />
@@ -115,7 +115,7 @@ export default function NotesPane({
                             disabled:opacity-40 ${
                               nag === m.nag
                                 ? "border-accent bg-accent/20 text-ink"
-                                : "border-ivory/10 text-muted hover:bg-ivory/10 hover:text-ink"
+                                : "border-line/35 text-muted hover:bg-ink/10 hover:text-ink"
                             }`}
               >
                 {m.glyph}
@@ -131,7 +131,7 @@ export default function NotesPane({
           {shapes.length > 0 && !readOnly && (
             <button
               onClick={() => onShapes([])}
-              className="ml-auto rounded border border-ivory/10 px-1.5 py-0.5 text-[10px]
+              className="ml-auto rounded border border-line/35 px-1.5 py-0.5 text-[10px]
                          text-muted hover:bg-bad/20 hover:text-bad"
             >
               Clear

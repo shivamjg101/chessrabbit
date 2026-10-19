@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 from app.core.bulk import bulk_insert, bulk_upsert
-from app.core.chess_utils import parse_pgn, positions_of_game
+from app.core.chess_utils import game_from_movetext, parse_pgn, positions_of_game
 from app.core.db import get_db
 from app.core.deps import get_current_user
 from app.core.ratelimit import user_rate_limit
@@ -53,7 +53,7 @@ async def list_games(
             load_only(
                 Game.id, Game.white, Game.black, Game.white_elo, Game.black_elo,
                 Game.result, Game.event, Game.played_on, Game.eco, Game.opening,
-                Game.ply_count,
+                Game.ply_count, Game.variant,
             )
         )
         .where(Game.owner_id == user.id)
@@ -122,7 +122,9 @@ async def import_games(
     indexes: list[list[tuple[int, int, str]]] = []
     for entry in parsed:
         try:
-            positions = positions_of_game(entry["movetext"])
+            positions = positions_of_game(
+                entry["movetext"], variant=entry["variant"], start_fen=entry["start_fen"]
+            )
             rows.append({
                 "owner_id": user.id,
                 "source": "user",
@@ -177,6 +179,30 @@ async def get_game(
     detail = GameDetail.model_validate(game)
     detail.annotations = annotations
     return detail
+
+
+@router.get("/games/{game_id}/line")
+async def get_game_line(
+    game_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    game = await db.get(Game, game_id)
+    if game is None or (game.owner_id is not None and game.owner_id != user.id):
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Game not found"})
+    try:
+        pgn = game_from_movetext(game.movetext, game.variant, game.start_fen)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail="Stored game could not be replayed") from exc
+    board = pgn.board()
+    start_fen = board.fen(shredder=board.chess960)
+    moves = []
+    for ply, played in enumerate(pgn.mainline_moves()):
+        san = board.san(played)
+        board.push(played)
+        moves.append({"ply": ply, "san": san, "uci": played.uci(),
+                      "fen": board.fen(shredder=board.chess960)})
+    return {"variant": game.variant, "start_fen": start_fen, "moves": moves}
 
 
 @router.patch("/games/{game_id}", response_model=GameOut)
@@ -236,6 +262,10 @@ async def export_game_pgn(
         headers.append(f'[BlackElo "{game.black_elo}"]')
     if game.eco:
         headers.append(f'[ECO "{game.eco}"]')
+    if game.variant == "chess960":
+        headers.extend(['[Variant "Chess960"]', '[SetUp "1"]', f'[FEN "{game.start_fen}"]'])
+    elif game.start_fen:
+        headers.extend(['[SetUp "1"]', f'[FEN "{game.start_fen}"]'])
 
     body = "\n".join(headers) + "\n\n" + game.movetext
     if not body.rstrip().endswith(game.result):

@@ -14,6 +14,8 @@ export interface Settings {
   engine: string;
   /** Engine search depth to request. Server clamps to the configured maximum. */
   depth: number;
+  /** Full-game review depth, independent of live position analysis. */
+  reviewDepth: number;
   /** Candidate lines to request. Server clamps to the configured maximum. */
   multipv: number;
   /** Re-analyse automatically whenever the position changes. */
@@ -35,6 +37,7 @@ export interface Settings {
 export const DEFAULTS: Settings = {
   engine: "stockfish",
   depth: 22,
+  reviewDepth: 18,
   // One line by default. MultiPV 3 costs roughly 2-3x MultiPV 1 at the same
   // depth because the engine cannot prune to a single best line, and it is
   // requested on every board navigation - so it sized the engine fleet while
@@ -49,13 +52,8 @@ export const DEFAULTS: Settings = {
   showCoordinates: true,
   highlightLastMove: true,
   animationMs: 200,
-  // Must match BOARD_THEMES[0].id in lib/boardTheme.ts, which is where the
-  // colours live. Not imported from there: boardTheme.ts imports useSettings
-  // from this file, so reading it back would be a cycle. When the default
-  // theme changes, change it in both places — this literal is how the board
-  // stayed walnut through an entire repalette, because swapping the theme
-  // list left this line pointing at the one brown theme still in it.
-  boardTheme: "slate",
+  // Match BOARD_THEMES[0].id; importing it would create a settings cycle.
+  boardTheme: "walnut",
 };
 
 /** Selectable engine depths and line counts, shared with the settings UI. */
@@ -119,6 +117,10 @@ export function clampToResources(maxDepth: number, maxLines: number): void {
   if (s.depth > maxDepth) {
     const allowed = DEPTH_CHOICES.filter((d) => d <= maxDepth);
     patch.depth = allowed.length ? allowed[allowed.length - 1] : maxDepth;
+  }
+  if (s.reviewDepth > maxDepth) {
+    const allowed = DEPTH_CHOICES.filter((d) => d <= maxDepth);
+    patch.reviewDepth = allowed.length ? allowed[allowed.length - 1] : maxDepth;
   }
   if (s.multipv > maxLines) patch.multipv = Math.max(1, maxLines);
   if (Object.keys(patch).length) updateSettings(patch);

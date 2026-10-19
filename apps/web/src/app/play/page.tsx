@@ -313,7 +313,7 @@ export default function PlayPage() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       {/* ---------- Top bar ---------- */}
-      <header className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-ivory/[0.07] bg-panel/70 px-3 backdrop-blur-xl">
+      <header className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-line/35 bg-panel/70 px-3 backdrop-blur-xl">
         <Link href="/app" className="btn">
           ← Board
         </Link>
@@ -322,7 +322,7 @@ export default function PlayPage() {
         <div className="ml-auto flex items-center gap-2">
           {status !== "setup" && (
             <>
-              <span className="chip bg-ivory/10 text-muted">
+              <span className="chip bg-ink/10 text-muted">
                 {userColor} · level {gameLevel}
               </span>
               {hintsUsed > 0 && (
@@ -407,10 +407,10 @@ export default function PlayPage() {
 
         {/* ---------- Game panel ---------- */}
         <aside
-          className="flex w-full shrink-0 flex-col border-ivory/[0.07] bg-panel/60 backdrop-blur-xl
+          className="flex w-full shrink-0 flex-col border-line/35 bg-panel/60 backdrop-blur-xl
                      border-t lg:h-full lg:w-[352px] lg:border-l lg:border-t-0 xl:w-[400px]"
         >
-          <div className="shrink-0 border-b border-ivory/[0.06] px-3 py-2.5">
+          <div className="shrink-0 border-b border-line/35 px-3 py-2.5">
             <div className="flex items-center gap-2">
               <span className="eyebrow">{status === "setup" ? "New game" : "Your game"}</span>
               {status !== "setup" && (
@@ -447,7 +447,7 @@ export default function PlayPage() {
                         className={`rounded-xl border px-2 py-3 transition-colors ${
                           color === c.id
                             ? "border-brass/50 bg-brass/15 text-brassLit"
-                            : "border-ivory/[0.07] bg-ivory/[0.04] text-muted hover:bg-ivory/[0.08] hover:text-ink"
+                            : "border-line/35 bg-ink/[0.04] text-muted hover:bg-ink/[0.08] hover:text-ink"
                         }`}
                       >
                         <span className="block text-2xl leading-none">{c.glyph}</span>
@@ -487,13 +487,13 @@ export default function PlayPage() {
                 <div className="card-tight p-3">
                   <p className="text-xs leading-relaxed text-muted">
                     <span className="text-gold">Stuck mid-game?</span> The Hint
-                    button — or <kbd className="rounded bg-ivory/10 px-1">H</kbd> —
+                    button — or <kbd className="rounded bg-ink/10 px-1">H</kbd> —
                     names the piece to move. Press it again to see the whole move.
                     Hints always come from a full-strength engine, whatever level
                     you are playing.
                   </p>
                   <p className="mt-2 text-xs text-muted">
-                    <kbd className="rounded bg-ivory/10 px-1">F</kbd> flips the board.
+                    <kbd className="rounded bg-ink/10 px-1">F</kbd> flips the board.
                   </p>
                 </div>
               </>
@@ -512,7 +512,7 @@ export default function PlayPage() {
                   ) : (
                     <p className="flex items-center gap-2 text-base font-semibold">
                       <span
-                        className={`h-4 w-4 rounded-full border border-ivory/40 ${
+                        className={`h-4 w-4 rounded-full border border-line/40 ${
                           userColor === "white" ? "bg-ivory" : "bg-ebony"
                         }`}
                       />
@@ -589,7 +589,7 @@ export default function PlayPage() {
 
           {/* Actions: pinned to the panel on a desktop, stuck to the bottom of
               the viewport while scrolling on a phone. */}
-          <div className="sticky bottom-0 shrink-0 space-y-2 border-t border-ivory/[0.06] bg-panel/90 p-2.5 backdrop-blur-xl lg:static lg:bg-transparent lg:backdrop-blur-none">
+          <div className="sticky bottom-0 shrink-0 space-y-2 border-t border-line/35 bg-panel/90 p-2.5 backdrop-blur-xl lg:static lg:bg-transparent lg:backdrop-blur-none">
             {status === "setup" ? (
               <button className="btn-primary w-full" onClick={startGame}>
                 Start game
@@ -619,7 +619,7 @@ export default function PlayPage() {
                     onClick={flip}
                     title="Flip board (f)"
                     aria-label="Flip board"
-                    className="rounded-lg border border-ivory/10 bg-ivory/[0.05] px-3 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/10 hover:text-ink"
+                    className="rounded-lg border border-line/35 bg-ink/[0.05] px-3 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ink/10 hover:text-ink"
                   >
                     ⟳
                   </button>

@@ -60,7 +60,7 @@ export default function DeltaBars({
 
               <div className="relative h-5 min-w-0 flex-1">
                 {/* Centre line: the baseline itself */}
-                <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-ivory/20" />
+                <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-ink/20" />
                 {r.value !== null && (
                   <div
                     className="absolute top-1/2 h-2.5 -translate-y-1/2 transition-all duration-500"
@@ -89,7 +89,7 @@ export default function DeltaBars({
         })}
       </div>
 
-      <p className="mt-2.5 border-t border-ivory/[0.06] pt-2 text-[11px] text-muted">
+      <p className="mt-2.5 border-t border-line/35 pt-2 text-[11px] text-muted">
         Centre line is {baselineLabel} ({baseline.toFixed(1)}
         {unit}). Right of it is better than your average, left is worse.
       </p>

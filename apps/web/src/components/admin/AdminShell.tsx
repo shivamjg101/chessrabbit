@@ -3,6 +3,7 @@
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   adminApi, adminTokenExpiresAt, clearAdminToken, getAdminToken,
 } from "@/lib/adminApi";
@@ -86,10 +87,11 @@ export default function AdminShell({
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-ivory/[0.07] bg-panel/80 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 border-b border-line/35 bg-panel/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-          <span className="text-sm font-bold">
-            ChessRabbit <span className="text-accent">admin</span>
+          <span className="inline-flex items-center gap-2 text-sm font-bold">
+            <Image src="/chessrabbit-mark.svg" alt="" width={24} height={24} aria-hidden="true" />
+            <span>ChessRabbit <span className="text-accent">admin</span></span>
           </span>
 
           <nav className="seg">

@@ -39,7 +39,7 @@ export default function EvalBar({ pct, text, whiteAhead, flipped, height }: Prop
       <span
         className={`absolute inset-x-0 text-[9px] leading-none font-mono font-bold text-center
                     ${labelAtBottom ? "bottom-1" : "top-1"}
-                    ${whiteAhead ? "text-ebony" : "text-ink"}`}
+                    ${whiteAhead ? "text-ebony" : "text-ivory"}`}
       >
         {text}
       </span>

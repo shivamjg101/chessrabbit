@@ -18,8 +18,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import { useBoardTheme } from "@/lib/boardTheme";
+import { BOARD_FRAME, useBoardTheme } from "@/lib/boardTheme";
 import { useClickToMove } from "@/hooks/useClickToMove";
+import { useSquareSize } from "@/hooks/useSquareSize";
 import {
   api, ApiError, Puzzle, PuzzleAttemptResult, PuzzleStats, PuzzleTheme,
 } from "@/lib/api";
@@ -38,10 +39,13 @@ function uciToMove(uci: string) {
 
 export default function PuzzlesPage() {
   const skin = useBoardTheme();
+  const [stageRef, boardSize] = useSquareSize(2 * BOARD_FRAME, 2 * BOARD_FRAME);
   const router = useRouter();
   const game = useRef(new Chess());
   const puzzleRef = useRef<Puzzle | null>(null);
   const modeRef = useRef<Mode>("practice");
+  const sourceRef = useRef<"public" | "mine">("public");
+  const requestSeq = useRef(0);
   const themeRef = useRef("");
   const scoreRef = useRef(0);
   const strikesRef = useRef(0);
@@ -58,6 +62,7 @@ export default function PuzzlesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [mode, setMode] = useState<Mode>("practice");
+  const [source, setSource] = useState<"public" | "mine">("public");
   const [retrying, setRetrying] = useState(false);
   const [theme, setTheme] = useState("");
   const [themes, setThemes] = useState<PuzzleTheme[]>([]);
@@ -67,16 +72,23 @@ export default function PuzzlesPage() {
   const [rushBest, setRushBest] = useState(0);
 
   const loadPuzzle = useCallback(async (ratingOverride?: number) => {
+    const seq = ++requestSeq.current;
     setStatus("loading");
+    setPuzzle(null);
+    puzzleRef.current = null;
+    setError(null);
     setFeedback(null);
     setExpectedSan(null);
     setRetrying(false);
     retryingRef.current = false;
     try {
       const p = await api.nextPuzzle({
-        theme: modeRef.current === "practice" && themeRef.current ? themeRef.current : undefined,
+        theme: modeRef.current === "practice" && sourceRef.current === "public" && themeRef.current ? themeRef.current : undefined,
         rating: ratingOverride,
+        mode: modeRef.current,
+        source: modeRef.current === "practice" ? sourceRef.current : "public",
       });
+      if (seq !== requestSeq.current) return;
       const g = new Chess(p.fen);
       game.current = g;
       puzzleRef.current = p;
@@ -88,17 +100,15 @@ export default function PuzzlesPage() {
       setSolIdx(0);
       setStatus("intro");
       setTimeout(() => {
+        if (seq !== requestSeq.current) return;
         g.move(uciToMove(p.moves[0]));
         setFen(g.fen());
         setSolIdx(1);
         setStatus("solving");
       }, 600);
     } catch (e) {
-
-        setError(
-          (e as { message?: string })?.message ??
-            "Could not load a puzzle. Have puzzles been loaded on the server?"
-        );
+      if (seq !== requestSeq.current) return;
+      setError(e instanceof ApiError ? e.message : "Could not load a puzzle.");
       setStatus("loading");
     }
   }, []);
@@ -185,7 +195,9 @@ export default function PuzzlesPage() {
 
       setStatus("opponent");
       setSolIdx(nextIdx);
+      const seq = requestSeq.current;
       setTimeout(() => {
+        if (seq !== requestSeq.current) return;
         g.move(uciToMove(puzzle.moves[nextIdx]));
         setFen(g.fen());
         setSolIdx(nextIdx + 1);
@@ -229,6 +241,12 @@ export default function PuzzlesPage() {
     loadPuzzle();
   }
 
+  function pickSource(next: "public" | "mine") {
+    sourceRef.current = next;
+    setSource(next);
+    loadPuzzle();
+  }
+
   // Rewind to the start (just after the setup move) so the same puzzle can be
   // attempted again. Marked as a retry so it doesn't touch the rating again.
   function resetToStart(p: Puzzle) {
@@ -255,8 +273,10 @@ export default function PuzzlesPage() {
     if (!p) return;
     resetToStart(p);
     setStatus("showing");
+    const seq = requestSeq.current;
     let i = 1;
     const step = () => {
+      if (seq !== requestSeq.current) return;
       if (i >= p.moves.length) {
         setStatus("shown");
         return;
@@ -270,15 +290,15 @@ export default function PuzzlesPage() {
   }
 
   const solving = status === "solving" || status === "opponent" || status === "intro";
-  const showBoard = mode === "practice" || rushActive;
+  const showBoard = (mode === "practice" && !!puzzle) || (rushActive && !error);
 
   return (
-    <div className="min-h-screen p-4 max-w-5xl mx-auto">
+    <div className="mx-auto flex min-h-dvh max-w-5xl flex-col p-4 lg:h-dvh">
       <header className="flex items-center gap-3 mb-4 flex-wrap">
         <Link href="/app" className="btn">← Board</Link>
         <Link href="/train" className="btn">♞ Repertoire</Link>
         <h1 className="font-display text-xl">Puzzles</h1>
-        {mode === "practice" && stats && (
+        {mode === "practice" && source === "public" && stats && (
           <span className="ml-auto flex items-center gap-4 text-sm">
             <span>
               <span className="text-muted">Rating </span>
@@ -308,21 +328,32 @@ export default function PuzzlesPage() {
       </header>
 
       {/* Mode tabs */}
-      <div className="flex gap-1 mb-3 text-sm">
+      <div className="mb-3 flex flex-wrap gap-2 text-sm">
         {(["practice", "rush"] as const).map((m) => (
           <button
             key={m}
             onClick={() => switchMode(m)}
             className={`px-3 py-1 rounded ${
-              mode === m ? "bg-accent text-black font-semibold" : "bg-panelAlt text-muted hover:text-ink"
+              mode === m ? "bg-accent text-ivory font-semibold" : "bg-panelAlt text-muted hover:text-ink"
             }`}
           >
             {m === "practice" ? "Practice" : "Puzzle Rush"}
           </button>
         ))}
-        {mode === "practice" && themes.length > 0 && (
+        {mode === "practice" && (
           <select
-            className="input text-sm ml-2 w-48"
+            className="input w-40 text-sm"
+            value={source}
+            onChange={(e) => pickSource(e.target.value as "public" | "mine")}
+            aria-label="Puzzle source"
+          >
+            <option value="public">Shared puzzles</option>
+            <option value="mine">My games</option>
+          </select>
+        )}
+        {mode === "practice" && source === "public" && themes.length > 0 && (
+          <select
+            className="input w-48 text-sm"
             value={theme}
             onChange={(e) => pickTheme(e.target.value)}
             title="Filter by tactical theme"
@@ -339,28 +370,37 @@ export default function PuzzlesPage() {
 
 
       {error && (
-        <p className="text-sm text-bad mb-3 cursor-pointer" onClick={() => setError(null)}>
-          {error} (dismiss)
-        </p>
+        <div role="alert" className="mb-3 flex items-center gap-3 text-sm text-bad">
+          <span>{error}</span>
+          <button className="btn shrink-0" onClick={() => loadPuzzle(mode === "rush" ? rushRating(scoreRef.current) : undefined)}>
+            Try again
+          </button>
+        </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {showBoard && (
-          <div className="board-frame w-[min(92vw,440px)] shrink-0">
-            <Chessboard
-              position={fen}
-              onPieceDrop={onDrop}
-              onSquareClick={onSquareClick}
-              boardOrientation={orientation}
-              arePiecesDraggable={status === "solving"}
-              {...skin.props}
-              animationDuration={skin.animationMs}
-              customSquareStyles={squareStyles}
-            />
-          </div>
-        )}
+      <div className="flex flex-col gap-6 lg:min-h-0 lg:flex-1 lg:flex-row">
+        <div
+          ref={stageRef}
+          className={`${showBoard ? "flex" : "hidden"} h-[min(calc(100vw-2rem),calc(100dvh-10rem))] w-full shrink-0 items-center justify-center lg:h-full lg:min-w-0 lg:flex-1 lg:shrink`}
+        >
+            {showBoard && boardSize > 0 && (
+              <div className="board-frame" style={{ width: boardSize + 2 * BOARD_FRAME }}>
+                <Chessboard
+                  position={fen}
+                  boardWidth={boardSize}
+                  onPieceDrop={onDrop}
+                  onSquareClick={onSquareClick}
+                  boardOrientation={orientation}
+                  arePiecesDraggable={status === "solving"}
+                  {...skin.props}
+                  animationDuration={skin.animationMs}
+                  customSquareStyles={squareStyles}
+                />
+              </div>
+            )}
+        </div>
 
-        <aside className="flex-1 space-y-3">
+        <aside className="min-w-0 flex-1 space-y-3 lg:w-72 lg:flex-none lg:overflow-y-auto">
           {/* Rush start / game-over card */}
           {mode === "rush" && !rushActive && (
             <div className="bg-panelAlt rounded p-6 text-center space-y-3">
@@ -392,7 +432,7 @@ export default function PuzzlesPage() {
             <div className="bg-panelAlt rounded p-4">
               <p className="text-lg font-semibold flex items-center gap-2">
                 <span
-                  className={`w-4 h-4 rounded-full border border-ivory/40 ${
+                  className={`w-4 h-4 rounded-full border border-line/40 ${
                     orientation === "white" ? "bg-white" : "bg-black"
                   }`}
                 />
@@ -418,7 +458,9 @@ export default function PuzzlesPage() {
           {mode === "practice" && status === "solved" && (
             <div className="bg-accent/20 rounded p-4">
               <p className="text-lg font-semibold text-accent">✓ Solved!</p>
-              {feedback ? (
+              {feedback && source === "mine" ? (
+                <p className="text-xs text-muted mt-1">Saved to your practice history. Puzzle rating unchanged.</p>
+              ) : feedback ? (
                 <RatingLine feedback={feedback} />
               ) : (
                 retrying && (
@@ -472,11 +514,11 @@ export default function PuzzlesPage() {
             puzzle &&
             (status === "solved" || status === "failed" || status === "shown") && (
             <div className="bg-panelAlt rounded p-3 text-xs text-muted space-y-1">
-              <div>Puzzle rating <span className="text-ink font-mono">{puzzle.rating}</span></div>
+              {source === "public" && <div>Puzzle rating <span className="text-ink font-mono">{puzzle.rating}</span></div>}
               {puzzle.themes.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {puzzle.themes.map((t) => (
-                    <span key={t} className="bg-ivory/5 rounded px-1.5 py-0.5">{t}</span>
+                    <span key={t} className="bg-ink/5 rounded px-1.5 py-0.5">{t}</span>
                   ))}
                 </div>
               )}

@@ -20,6 +20,7 @@ import AnalysisBoard from "@/components/AnalysisBoard";
 import StudyChapters from "@/components/StudyChapters";
 import StudyShare from "@/components/StudyShare";
 import { api, ApiError, Study, StudyChapter, StudyDetail, StudyMember } from "@/lib/api";
+import { parseStudyImport } from "@/lib/studyImport";
 
 /** What the board's header says about the last save. */
 type SaveState = { text: string; bad?: boolean } | null;
@@ -36,6 +37,9 @@ function StudyWorkspace() {
   const [saving, setSaving] = useState<SaveState>(null);
   const [busy, setBusy] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
   const [railOpen, setRailOpen] = useState(true);
 
   /**
@@ -166,6 +170,55 @@ function StudyWorkspace() {
     }
   }
 
+  async function duplicateChapter(id: number) {
+    if (!study || busy) return;
+    setBusy(true);
+    try {
+      const chapter = await api.duplicateChapter(ref, id);
+      setStudy((current) => current
+        ? { ...current, chapters: [...current.chapters, chapter] }
+        : current);
+      setSaving({ text: `Copied the last saved version of this chapter` });
+    } catch (err) {
+      setSaving({
+        text: err instanceof ApiError ? err.message : "Could not duplicate that chapter",
+        bad: true,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function importPgn() {
+    if (!study || busy) return;
+    let chapters;
+    try {
+      chapters = parseStudyImport(importText);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Could not read that PGN");
+      return;
+    }
+    if (study.chapters.length + chapters.length > 64) {
+      setImportError("A study holds 64 chapters. Import fewer chapters or start another study.");
+      return;
+    }
+    setBusy(true);
+    setImportError(null);
+    try {
+      const imported = await api.importStudyChapters(ref, chapters);
+      setStudy((current) => current
+        ? { ...current, chapters: [...current.chapters, ...imported] }
+        : current);
+      setSaving({ text: `Imported ${imported.length} chapter${imported.length === 1 ? "" : "s"}` });
+      setShowImport(false);
+      setImportText("");
+    } catch (err) {
+      setImportError(err instanceof ApiError ? err.message : "Could not import that PGN");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function renameChapter(id: number, name: string) {
     const before = study?.chapters.find((c) => c.id === id);
     if (!before) return;
@@ -262,8 +315,8 @@ function StudyWorkspace() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       <header
-        className="z-40 flex h-14 shrink-0 items-center gap-2 border-b border-[#2F4A6B]
-                   bg-panel/80 px-3 shadow-[0_2px_10px_rgba(12,8,5,0.45)] backdrop-blur-xl"
+        className="z-40 flex h-14 shrink-0 items-center gap-2 border-b border-line/50
+                   bg-panel/90 px-3 shadow-[0_2px_10px_rgba(77,47,24,0.14)] backdrop-blur-xl"
       >
         <button
           className="btn px-2"
@@ -316,7 +369,7 @@ function StudyWorkspace() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {railOpen && (
           <aside
-            className="shrink-0 border-b border-ivory/[0.07] bg-panel/40 lg:h-full lg:w-56
+            className="shrink-0 border-b border-line/35 bg-panel/40 lg:h-full lg:w-56
                        lg:border-b-0 lg:border-r"
           >
             <StudyChapters
@@ -329,6 +382,8 @@ function StudyWorkspace() {
                 if (chapter) openChapter(chapter);
               }}
               onAdd={addChapter}
+              onImport={() => { setImportError(null); setShowImport(true); }}
+              onDuplicate={duplicateChapter}
               onRename={renameChapter}
               onDelete={deleteChapter}
               onMove={moveChapter}
@@ -338,6 +393,7 @@ function StudyWorkspace() {
 
         <main className="min-h-0 flex-1">
           <AnalysisBoard
+            key={active.id}
             initialPgn={openPgn}
             gameLabel={active.name}
             study={{
@@ -352,7 +408,7 @@ function StudyWorkspace() {
 
         {showShare && canEdit && (
           <aside
-            className="shrink-0 border-t border-ivory/[0.07] bg-panel/60 p-3 lg:h-full lg:w-72
+            className="shrink-0 border-t border-line/35 bg-panel/60 p-3 lg:h-full lg:w-72
                        lg:overflow-y-auto lg:border-l lg:border-t-0"
           >
             <StudyShare
@@ -364,6 +420,54 @@ function StudyWorkspace() {
           </aside>
         )}
       </div>
+
+      {showImport && canEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="study-import-title"
+               className="w-full max-w-xl rounded-xl border border-line/40 bg-panel p-5 shadow-xl">
+            <h2 id="study-import-title" className="font-display text-xl">Import PGN chapters</h2>
+            <p className="mt-1 text-sm text-muted">
+              Paste a PGN or choose a file. Each game becomes a chapter; moves,
+              variations and comments stay with it. Lichess study exports work here.
+            </p>
+            <input
+              type="file"
+              accept=".pgn,application/x-chess-pgn,text/plain"
+              aria-label="Choose PGN file"
+              className="mt-4 block w-full text-sm"
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                if (file.size > 5_000_000) {
+                  setImportError("Choose a PGN file smaller than 5 MB.");
+                  return;
+                }
+                setImportText(await file.text());
+                setImportError(null);
+              }}
+            />
+            <label htmlFor="study-import-pgn" className="mt-4 block text-xs text-muted">
+              PGN text
+            </label>
+            <textarea
+              id="study-import-pgn"
+              className="input mt-1 h-48 w-full font-mono text-xs"
+              value={importText}
+              onChange={(event) => { setImportText(event.target.value); setImportError(null); }}
+              placeholder={'[Event "My study: Chapter 1"]\n\n1. e4 (1. d4) e5 *'}
+            />
+            {importError && <p role="alert" className="mt-2 text-sm text-bad">{importError}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="btn" disabled={busy} onClick={() => setShowImport(false)}>
+                Cancel
+              </button>
+              <button className="btn-primary" disabled={busy || !importText.trim()} onClick={importPgn}>
+                {busy ? "Importing…" : "Add chapters"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

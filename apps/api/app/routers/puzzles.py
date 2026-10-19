@@ -59,6 +59,7 @@ async def _pick_puzzle(
     hi: int,
     theme: str | None,
     exclude_seen: bool = True,
+    source: str = "public",
 ) -> Puzzle | None:
     """
     One puzzle rated within [lo, hi], chosen without sorting the table.
@@ -68,32 +69,38 @@ async def _pick_puzzle(
     request, which on the full Lichess dump is millions of rows for a single
     puzzle served. Instead: drop a uniform pivot inside the rating window and
     let puzzles_rating_idx walk a bounded batch forward from it, then choose in
-    Python. Ratings are dense enough that a batch is "the puzzles at roughly
-    this rating", so a uniform pivot still gives a uniform-feeling draw, and
-    the work per request is O(log n + CANDIDATE_BATCH) instead of O(n log n).
+    Python. A final range scan handles sparse datasets where every random
+    pivot happens to land above the available rows.
     """
     lo = max(RATING_FLOOR, min(lo, RATING_CEIL))
     hi = max(lo, min(hi, RATING_CEIL))
 
-    for _ in range(PIVOT_ATTEMPTS):
-        stmt = select(Puzzle).where(
-            Puzzle.rating >= random.randint(lo, hi), Puzzle.rating <= hi
-        )
-        if exclude_seen:
-            stmt = stmt.where(
-                Puzzle.id.not_in(
-                    select(PuzzleAttempt.puzzle_id).where(PuzzleAttempt.user_id == user_id)
-                )
+    stmt = select(Puzzle).where(Puzzle.rating >= lo, Puzzle.rating <= hi)
+    stmt = stmt.where(
+        Puzzle.owner_id == user_id if source == "mine" else Puzzle.owner_id.is_(None)
+    )
+    if exclude_seen:
+        stmt = stmt.where(
+            Puzzle.id.not_in(
+                select(PuzzleAttempt.puzzle_id).where(PuzzleAttempt.user_id == user_id)
             )
-        if theme:
-            stmt = stmt.where(Puzzle.themes.like(f"%{_like_escape(theme)}%", escape="\\"))
+        )
+    if theme:
+        stmt = stmt.where(Puzzle.themes.like(f"%{_like_escape(theme)}%", escape="\\"))
 
+    for _ in range(PIVOT_ATTEMPTS):
         rows = (
-            await db.execute(stmt.order_by(Puzzle.rating).limit(CANDIDATE_BATCH))
+            await db.execute(
+                stmt.where(Puzzle.rating >= random.randint(lo, hi))
+                .order_by(Puzzle.rating).limit(CANDIDATE_BATCH)
+            )
         ).scalars().all()
         if rows:
             return random.choice(rows)
-    return None
+    rows = (
+        await db.execute(stmt.order_by(Puzzle.rating).limit(CANDIDATE_BATCH))
+    ).scalars().all()
+    return random.choice(rows) if rows else None
 
 
 def _to_out(p: Puzzle) -> PuzzleOut:
@@ -132,7 +139,8 @@ async def list_themes(
             text(
                 """
                 SELECT theme, COUNT(*) AS n
-                FROM (SELECT unnest(string_to_array(themes, ' ')) AS theme FROM puzzles) t
+                FROM (SELECT unnest(string_to_array(themes, ' ')) AS theme
+                      FROM puzzles WHERE owner_id IS NULL) t
                 WHERE theme <> ''
                 GROUP BY theme
                 ORDER BY n DESC
@@ -165,19 +173,21 @@ async def next_puzzle(
     theme: str | None = Query(default=None, max_length=40),
     rating: int | None = Query(default=None, ge=RATING_FLOOR, le=RATING_CEIL),
     mode: str = Query(default="practice", pattern="^(practice|rush|clock)$"),
+    source: str = Query(default="public", pattern="^(public|mine)$"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    A puzzle the player hasn't seen, near a target rating (their own by
-    default; `rating` overrides it, e.g. for Rush difficulty ramps), optionally
-    filtered by theme.
+    A public puzzle or one extracted from the player's own games, near a target
+    rating (their own by default), optionally filtered by theme.
 
     The daily puzzle quota applies to practice only - rush and clock serves
     are covered by their own once-a-day session gates.
     """
 
     center = rating if rating is not None else user.puzzle_rating
+    if source == "mine" and mode != "practice":
+        raise HTTPException(status_code=400, detail={"code": "bad_source", "message": "Personal puzzles are for practice mode"})
     lo, hi = center - RATING_WINDOW, center + RATING_WINDOW
 
     # 1) unseen, near rating, matching theme -> 2) unseen at any rating ->
@@ -187,13 +197,16 @@ async def next_puzzle(
         (RATING_FLOOR, RATING_CEIL, theme, True),
         (RATING_FLOOR, RATING_CEIL, theme, False),
     ):
-        puzzle = await _pick_puzzle(db, user.id, *args)
+        puzzle = await _pick_puzzle(db, user.id, *args, source=source)
         if puzzle is not None:
             return _to_out(puzzle)
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail={"code": "no_puzzles", "message": "No puzzles loaded. Run pipeline/load_puzzles.py."},
+        detail={"code": "no_puzzles", "message": (
+            "Review your games to create personal puzzles."
+            if source == "mine" else "No puzzles loaded. Run pipeline/load_puzzles.py."
+        )},
     )
 
 
@@ -203,9 +216,9 @@ async def record_attempt(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Record a solve/fail and update the player's tactics rating (Elo)."""
+    """Record a solve/fail; only public puzzles change tactics rating."""
     puzzle = await db.get(Puzzle, payload.puzzle_id)
-    if puzzle is None:
+    if puzzle is None or (puzzle.owner_id is not None and puzzle.owner_id != user.id):
         raise HTTPException(
             status_code=404,
             detail={"code": "not_found", "message": "Puzzle not found"},
@@ -214,7 +227,7 @@ async def record_attempt(
     before = user.puzzle_rating
     expected = 1.0 / (1.0 + 10 ** ((puzzle.rating - before) / 400.0))
     score = 1.0 if payload.solved else 0.0
-    after = round(before + K_FACTOR * (score - expected))
+    after = round(before + K_FACTOR * (score - expected)) if puzzle.owner_id is None else before
     after = max(RATING_FLOOR, min(RATING_CEIL, after))
 
     user.puzzle_rating = after

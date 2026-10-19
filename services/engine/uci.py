@@ -47,8 +47,11 @@ class _WindowsProcess:
 
     async def wait(self):
         code = await asyncio.to_thread(self.process.wait)
-        self.process.stdin.close()
-        self.process.stdout.close()
+        for pipe in (self.process.stdin, self.process.stdout):
+            try:
+                pipe.close()
+            except OSError:
+                pass
         return code
 
     def kill(self):
@@ -230,8 +233,9 @@ class StockfishEngine:
             try:
                 await self._send("quit")
                 await asyncio.wait_for(self.proc.wait(), timeout=5)
-            except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError):
-                self.proc.kill()
+            except (asyncio.TimeoutError, OSError):
+                if self.proc.returncode is None:
+                    self.proc.kill()
                 await self.proc.wait()
         self.proc = None
 
@@ -290,6 +294,8 @@ class StockfishEngine:
         stop_event: asyncio.Event | None = None,
         on_line: Callable[[EvalLine], None] | None = None,
         skill: int = 20,
+        chess960: bool = False,
+        new_game: bool = True,
     ) -> AsyncIterator[EvalLine | dict]:
         """
         Stream evaluation lines for a position.
@@ -301,11 +307,15 @@ class StockfishEngine:
             if not self.alive:
                 await self.restart()
 
+            if chess960 and "UCI_Chess960" not in self.supported_options:
+                raise ValueError("This engine does not support Chess960")
+            await self.set_option("UCI_Chess960", chess960)
             await self.set_option("MultiPV", max(1, multipv))
             # Always set Skill Level so a weakened play move never leaks into the
             # next full-strength analysis on this reused engine (20 = full).
             await self.set_option("Skill Level", max(0, min(20, skill)))
-            await self._send("ucinewgame")
+            if new_game:
+                await self._send("ucinewgame")
             await self._ready()
             await self._send(f"position fen {fen}")
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import DesktopAuthGate from "@/components/DesktopAuthGate";
 import "./globals.css";
 
 // Bundled fonts remove Google Fonts requests from builds and local installs.
@@ -43,16 +44,16 @@ const plexMono = localFont({
 });
 
 export const metadata: Metadata = {
+  icons: { icon: "/chessrabbit-mark.svg" },
   title: "ChessRabbit — Opening Repertoire Trainer",
   description:
     "Drill your openings on a spaced-repetition schedule, find the blunders in your own games, and scout what your next opponent actually plays.",
 };
 
-// One ink world, end to end: tell the browser so form controls and the mobile
-// address bar match the page instead of flashing white.
+// Match native controls and the mobile browser chrome to the oak canvas.
 export const viewport: Viewport = {
-  colorScheme: "dark",
-  themeColor: "#0D1728",
+  colorScheme: "light",
+  themeColor: "#EBD9BC",
 };
 
 export default function RootLayout({
@@ -65,7 +66,7 @@ export default function RootLayout({
       lang="en"
       className={`h-full ${archivo.variable} ${instrumentSerif.variable} ${plexMono.variable}`}
     >
-      <body className="min-h-full text-ink antialiased font-sans">{children}</body>
+      <body className="min-h-full text-ink antialiased font-sans"><DesktopAuthGate>{children}</DesktopAuthGate></body>
     </html>
   );
 }

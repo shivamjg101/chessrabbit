@@ -71,7 +71,7 @@ export default function PrepPage() {
 
       {me && (
         <>
-          <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4 flex gap-2 flex-wrap items-end">
+          <div className="bg-panelAlt/60 border border-line/35 rounded-xl p-4 flex gap-2 flex-wrap items-end">
             <div>
               <label className="text-xs text-muted block mb-1">Platform</label>
               <select
@@ -120,7 +120,7 @@ export default function PrepPage() {
                 <LineTable title="When they play Black" lines={dossier.as_black} />
               </div>
 
-              <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4 flex gap-3 items-center flex-wrap">
+              <div className="bg-panelAlt/60 border border-line/35 rounded-xl p-4 flex gap-3 items-center flex-wrap">
                 <span className="text-sm">Build a counter-repertoire — I&apos;ll play</span>
                 <select
                   className="input w-28"
@@ -156,7 +156,7 @@ export default function PrepPage() {
 
 function LineTable({ title, lines }: { title: string; lines: PrepLine[] }) {
   return (
-    <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4">
+    <div className="bg-panelAlt/60 border border-line/35 rounded-xl p-4">
       <h3 className="font-semibold text-sm mb-2">{title}</h3>
       {lines.length === 0 ? (
         <p className="text-xs text-muted">No recent games with this colour.</p>

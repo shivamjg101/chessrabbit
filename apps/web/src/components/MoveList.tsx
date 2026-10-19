@@ -116,7 +116,7 @@ export default function MoveList({
                     transition-colors ${
                       active
                         ? "bg-accent/25 text-ink font-semibold ring-1 ring-accent/50"
-                        : "hover:bg-ivory/[0.07]"
+                        : "hover:bg-ink/[0.07]"
                     }`}
       >
         {cls && badge(cls, !!live)}
@@ -143,7 +143,7 @@ export default function MoveList({
         title={live ? liveTitle(live) : undefined}
         aria-current={active ? "true" : undefined}
         className={`inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors ${
-          active ? "bg-accent/25 font-semibold text-ink ring-1 ring-accent/50" : "hover:bg-ivory/[0.07]"
+          active ? "bg-accent/25 font-semibold text-ink ring-1 ring-accent/50" : "hover:bg-ink/[0.07]"
         }`}
       >
         {t.num && <span className="mr-0.5 text-muted">{t.num}</span>}

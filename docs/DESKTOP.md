@@ -1,8 +1,12 @@
 # ChessRabbit for Windows
 
+This guide describes the 0.1.4 desktop source/build. The public 0.1.2 prerelease linked from the README predates the direct-board and optional app-lock changes.
+
 Download **ChessRabbit-Setup.exe**, run the installer, and open ChessRabbit using the desktop or Start menu shortcut. The installer supports Windows 10/11 on 64-bit Intel/AMD PCs. It installs for your Windows user without configuring system services. Stockfish 19 is included and local analysis works offline.
 
 The app is free, GPL-3.0 open source, with optional [donations](https://buymeacoffee.com/shivamjg101). No subscription, activation key or account registration is required.
+
+ChessRabbit opens directly to your local board. Choose **Import Lichess games** or **Import Chess.com games** and enter a username to import public games; no ChessRabbit or platform sign-in is required. You can also import a PGN. These public-game imports do not verify ownership or access private games.
 
 ## System requirements
 
@@ -31,17 +35,25 @@ For step-by-step Leela instructions, see [install Leela Chess Zero](../README.md
 - **Leela Chess Zero:** download a Windows Lc0 package appropriate for your hardware and a compatible network from [the official downloads](https://lczero.org/play/download/). Extract it into a permanent folder. In ChessRabbit, choose **Engines → Add Leela Chess Zero**, select `lc0.exe`, then select the network `.pb.gz` or `.pb`. GPU builds require their matching drivers/runtime libraries; CPU builds also work. The native menu reports startup errors before accepting the engine.
 - **Another UCI engine:** choose **Engines → Add UCI engine** and select its executable. Keep its required files together in a permanent folder.
 
-Open Analysis settings and select the added engine. Live analysis and game reviews use that engine. Playing against the computer uses Stockfish's adjustable strength. Finish or stop current analysis before replacing an engine. If a custom engine moves, add it again from its new location.
+Open Analysis settings and select the added engine. Live analysis and game reviews use that engine; their depth settings are separate, with game reviews defaulting to depth 18. Playing against the computer uses Stockfish's adjustable strength. Finish or stop current analysis before replacing an engine. If a custom engine moves, add it again from its new location.
 
 ## Local data and updates
 
+To require a password when ChessRabbit opens, choose **File → App lock**. Set a password of at least eight characters. The same menu lets you change or remove it with the current password, or choose **Lock and close**; the next launch will require the password. The local database and API do not start before unlock. After five incorrect attempts, wait 30 seconds before trying again.
+
+This is an app-access privacy screen, **not encryption of your local game files**. Anyone with access to your Windows user profile can reset it. If you forget the password, close ChessRabbit, delete only `%APPDATA%\ChessRabbit\app-lock.json`, and reopen the app. Your games and encrypted backup recovery key remain untouched. If you launched with a custom `--data-dir`, delete `app-lock.json` from that directory instead. Protect the Windows account itself if other people use the computer.
+
 **File → Open data folder** opens `%APPDATA%/ChessRabbit/local`. Games, annotations and results are stored in its `postgres` directory. `engines.json` stores trusted native engine paths; `desktop.log` and `postgres.log` help diagnose startup errors. The app binds services only to `127.0.0.1` and chooses free local ports automatically.
 
-For a full backup, close ChessRabbit and copy the **whole local folder** to another location. It includes the database credentials needed to read the database. Restore the whole folder while the app is closed. Treat backups as private. The embedded database is PostgreSQL 16; a future major database upgrade will require an explicit migration.
+Use **File → Save encrypted backup** for a consistent database snapshot. ChessRabbit encrypts it with a recovery key kept outside the local database folder; use **File → Export recovery key** and store that key separately. Anyone with both files can read the backup, and losing the key makes the backup unusable. **File → Choose daily backup folder** writes encrypted snapshots there approximately once per day while the app runs; that folder may be a cloud-synced folder, but this is snapshot transfer, not live multi-device merging. **Stop daily folder backups** disables future snapshots without deleting old ones. Old snapshots are not pruned automatically, so monitor available space.
 
-Installing a newer app version preserves this folder and applies each new schema migration once. Uninstalling removes the program and shortcuts and preserves your personal data. To remove that data too, delete the local folder after closing/uninstalling the app.
+Use **File → Restore backup** to select a snapshot and its recovery key. The app closes and stages the restore for the next launch. Restore creates a new PostgreSQL database, checks it, then switches to it; the previous database remains on this computer as a rollback copy. The restore does not reinstall custom UCI executables or network files, which must be added again on a new computer. Syzygy files are also external and must remain at the selected path or be reselected from **Engines → Choose Syzygy tablebases**. Test a backup before relying on it. The embedded database is PostgreSQL 16; a future major database upgrade will require an explicit migration.
 
-Online player imports and opening statistics need internet access. Reference games, puzzle datasets, Leela networks and tablebases are optional separate downloads. New installations do not include those large datasets.
+You can still make a manual full-folder copy while ChessRabbit is closed. It includes credentials and the live PostgreSQL cluster, so treat it as private and restore it only while the app is closed.
+
+To update, close ChessRabbit, save an encrypted backup and export its recovery key, then run the newer installer under the same Windows user account. Installing a newer app version preserves this folder and applies each new schema migration once; your games and settings remain available. Keep the recovery key separately and check your games after the first launch. The app does not update itself automatically. Uninstalling removes the program and shortcuts and preserves your personal data. To remove that data too, delete the local folder after closing/uninstalling the app.
+
+Online player imports and opening statistics need internet access. The installer built from this source includes 1,200 offline starter puzzles for Practice and Puzzle Rush. Reference games, larger puzzle datasets, Leela networks and tablebases are optional separate downloads.
 
 ## Build the installer
 
@@ -55,7 +67,7 @@ npm ci --prefix apps/desktop
 .\apps\desktop\scripts\build_windows.ps1 -Python .\.venv\Scripts\python.exe
 ```
 
-The build verifies pinned SHA-256 checksums for the PostgreSQL and Stockfish archives, exports the web app with relative local API/WebSocket URLs, freezes the Python runtime, and builds an NSIS installer at `dist/windows/ChessRabbit-Setup.exe`. No user `.env` or game data is packaged. The release workflow repeats this build on Windows, installs it in an isolated runner, tests real Stockfish analysis, WebSocket streaming and data persistence, and uploads the installer, checksum and corresponding source.
+The build verifies pinned SHA-256 checksums for the PostgreSQL and Stockfish archives, exports the web app with relative local API/WebSocket URLs, freezes the Python runtime, bundles the starter puzzles, and builds an NSIS installer at `dist/windows/ChessRabbit-Setup.exe`. No user `.env` or game data is packaged. The release workflow repeats this build on Windows, installs it in an isolated runner, tests real Stockfish analysis, WebSocket streaming, offline puzzle availability and data persistence, and uploads the installer, checksum and corresponding source.
 
 For native runtime validation:
 

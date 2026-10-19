@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import AnalysisBoard from "@/components/AnalysisBoard";
 import { GamePlayers } from "@/components/PlayerPlate";
 import MoreMenu from "@/components/MoreMenu";
@@ -37,13 +38,14 @@ const MOBILE_NAV = [
   { href: "/train/clock", label: "Time bank" },
   { href: "/insights", label: "Insights" },
   { href: "/prep", label: "Opponent prep" },
+  { href: "/chess960", label: "Chess960" },
 ];
 
 /** Colour a result the way a scoreboard would: the winning side's own piece. */
 function resultTone(result: string): string {
   if (result === "1-0") return "bg-ivory text-ebony";
-  if (result === "0-1") return "bg-ebony text-ink ring-1 ring-ivory/25";
-  return "bg-ivory/10 text-muted";
+  if (result === "0-1") return "bg-ebony text-ivory ring-1 ring-ivory/25";
+  return "bg-ink/10 text-muted";
 }
 
 function AppWorkspace() {
@@ -51,6 +53,14 @@ function AppWorkspace() {
   const gameParam = useSearchParams().get("game");
   const [me, setMe] = useState<Me | null>(null);
   const [games, setGames] = useState<Game[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(true);
+  const [gamesError, setGamesError] = useState(false);
+  const [gameSearch, setGameSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [gamesPage, setGamesPage] = useState(1);
+  const [hasMoreGames, setHasMoreGames] = useState(false);
+  const [loadingMoreGames, setLoadingMoreGames] = useState(false);
+  const gamesRequest = useRef(0);
   const [activePgn, setActivePgn] = useState<string | undefined>();
   const [activeLabel, setActiveLabel] = useState<string | undefined>();
   // Names for the plates above and below the board. The movetext the board
@@ -68,6 +78,7 @@ function AppWorkspace() {
   // enough to keep the board touching top and bottom. It is one click away.
   const [railOpen, setRailOpen] = useState(false); // desktop rail
   const [drawerOpen, setDrawerOpen] = useState(false); // mobile drawer
+  const gamesToggleRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountsOpen, setAccountsOpen] = useState(false);
@@ -77,16 +88,48 @@ function AppWorkspace() {
   const [busyPlatform, setBusyPlatform] = useState<string | null>(null);
 
   const loadGames = useCallback(() => {
-    api.listGames().then(setGames).catch(() => setGames([]));
-  }, []);
+    const requestId = ++gamesRequest.current;
+    setGamesLoading(true);
+    setGamesError(false);
+    api.listGames(1, searchQuery).then((rows) => {
+      if (requestId !== gamesRequest.current) return;
+      setGames(rows);
+      setGamesPage(1);
+      setHasMoreGames(rows.length === 50);
+    }).catch(() => {
+      if (requestId === gamesRequest.current) {
+        setGames([]);
+        setHasMoreGames(false);
+        setGamesError(true);
+      }
+    }).finally(() => {
+      if (requestId === gamesRequest.current) setGamesLoading(false);
+    });
+  }, [searchQuery]);
 
   useEffect(() => {
-    setRailOpen(window.innerWidth >= 1536);
+    const timer = window.setTimeout(() => setSearchQuery(gameSearch.trim()), 220);
+    return () => window.clearTimeout(timer);
+  }, [gameSearch]);
 
-    // Fired together, not chained: the games list needs the same bearer token
-    // as /me and nothing from its response, so waiting for one before starting
-    // the other only ever added a round trip to the first paint.
-    loadGames();
+  useEffect(() => { loadGames(); }, [loadGames]);
+
+  async function loadMoreGames() {
+    if (loadingMoreGames) return;
+    setLoadingMoreGames(true);
+    const requestId = gamesRequest.current;
+    try {
+      const rows = await api.listGames(gamesPage + 1, searchQuery);
+      if (requestId !== gamesRequest.current) return;
+      setGames((current) => [...current, ...rows]);
+      setGamesPage((current) => current + 1);
+      setHasMoreGames(rows.length === 50);
+    } catch { setNotice("Could not load more games"); }
+    finally { setLoadingMoreGames(false); }
+  }
+
+  useEffect(() => {
+    setRailOpen(window.innerWidth >= 1280);
 
     api
       .me()
@@ -99,7 +142,33 @@ function AppWorkspace() {
       })
       .catch(() => router.push("/login"));
 
-  }, [router, loadGames]);
+  }, [router]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const drawer = document.getElementById("games-drawer");
+    const focusable = () => Array.from(drawer?.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])") ?? []);
+    focusable()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDrawerOpen(false);
+        gamesToggleRef.current?.focus();
+      } else if (event.key === "Tab") {
+        const items = focusable();
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
 
 
   /**
@@ -113,6 +182,10 @@ function AppWorkspace() {
   const openGameById = useCallback(async (id: number) => {
     try {
       const g = await api.getGame(id);
+      if (g.variant === "chess960") {
+        router.push(`/chess960/game?game=${id}`);
+        return;
+      }
       setActivePgn(g.movetext);
       setActiveId(id);
       setActiveAnnotations(g.annotations);
@@ -131,7 +204,7 @@ function AppWorkspace() {
     } catch {
       setNotice("Could not load that game");
     }
-  }, []);
+  }, [router]);
 
   const openGame = (g: Game) => openGameById(g.id);
 
@@ -161,7 +234,8 @@ function AppWorkspace() {
     return msg;
   }
 
-  async function openAccounts() {
+  async function openAccounts(platform?: "lichess" | "chesscom") {
+    if (platform) setConnectPlatform(platform);
     setAccountsOpen(true);
     api.listAccounts().then(setAccounts).catch(() => setAccounts([]));
   }
@@ -213,6 +287,21 @@ function AppWorkspace() {
     router.push("/");
   }
 
+  function openGames() {
+    if (window.matchMedia("(min-width: 1024px)").matches) setRailOpen(true);
+    else setDrawerOpen(true);
+  }
+
+  function openImport() {
+    setDrawerOpen(false);
+    setImportOpen(true);
+  }
+
+  function closeDrawer() {
+    setDrawerOpen(false);
+    gamesToggleRef.current?.focus();
+  }
+
   if (!me) {
     return (
       <main className="flex min-h-dvh items-center justify-center gap-3 text-muted">
@@ -226,23 +315,53 @@ function AppWorkspace() {
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center gap-2 px-3 py-2.5">
         <span className="eyebrow">My games</span>
-        <span className="rounded-full bg-ivory/[0.07] px-1.5 py-0.5 font-mono text-[10px] text-muted">
-          {games.length}
-        </span>
+        {!gamesLoading && !gamesError && (
+          <span className="rounded-full bg-ink/[0.07] px-1.5 py-0.5 font-mono text-[10px] text-muted">
+            {games.length} shown
+          </span>
+        )}
         <button
           className="ml-auto rounded-md px-1.5 py-0.5 text-xs text-accent hover:bg-accent/10"
-          onClick={() => setImportOpen(true)}
+          onClick={openImport}
         >
           + Import
+        </button>
+        <button className="rounded px-1 text-sm text-muted lg:hidden" onClick={closeDrawer} aria-label="Close games list">
+          ×
         </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-        {games.length === 0 && (
-          <p className="px-1 text-xs leading-relaxed text-muted">
-            No games yet. Connect your Lichess or Chess.com account, import a
-            PGN, or just start moving pieces on the board.
-          </p>
+        <input
+          className="input mb-2 w-full text-xs"
+          aria-label="Search my games by player"
+          placeholder="Search players…"
+          value={gameSearch}
+          onChange={(event) => setGameSearch(event.target.value)}
+        />
+        {gamesLoading && <p className="px-1 text-xs text-muted" role="status">Loading games…</p>}
+        {!gamesLoading && gamesError && (
+          <div className="px-1 text-xs text-muted" role="alert">
+            <p>Could not load your games.</p>
+            <button className="btn mt-2 w-full" onClick={loadGames}>Retry</button>
+          </div>
+        )}
+        {!gamesLoading && !gamesError && games.length === 0 && (
+          gameSearch.trim() ? (
+            <div className="px-1 text-xs text-muted">
+              <p>No games match this search.</p>
+              <button className="mt-2 text-brassLit underline" onClick={() => setGameSearch("")}>Clear search</button>
+            </div>
+          ) : (
+            <div className="px-1 text-xs leading-relaxed text-muted">
+              <p>No games yet. Import public games by username or add a PGN. No ChessRabbit account is needed.</p>
+              <div className="mt-3 grid gap-2">
+                <button className="btn w-full" onClick={() => { setDrawerOpen(false); openAccounts("lichess"); }}>Import Lichess games</button>
+                <button className="btn w-full" onClick={() => { setDrawerOpen(false); openAccounts("chesscom"); }}>Import Chess.com games</button>
+                <button className="btn w-full" onClick={openImport}>Import PGN</button>
+              </div>
+            </div>
+          )
         )}
         <ul className="space-y-1">
           {games.map((g) => {
@@ -254,7 +373,7 @@ function AppWorkspace() {
                   className={`w-full rounded-lg p-2 text-left transition-colors ${
                     active
                       ? "bg-accent/15 ring-1 ring-accent/40"
-                      : "hover:bg-ivory/[0.06]"
+                      : "hover:bg-ink/[0.06]"
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
@@ -270,8 +389,9 @@ function AppWorkspace() {
                     </span>
                   </div>
                   <div className="mt-0.5 flex gap-1.5 text-[10px] text-muted">
+                    {g.variant === "chess960" && <span className="rounded bg-accent/15 px-1 text-accent">Chess960</span>}
                     {g.eco && (
-                      <span className="rounded bg-ivory/[0.07] px-1">{g.eco}</span>
+                      <span className="rounded bg-ink/[0.07] px-1">{g.eco}</span>
                     )}
                     {g.opening && <span className="truncate">{g.opening}</span>}
                     {!g.opening && g.played_on && <span>{g.played_on}</span>}
@@ -281,6 +401,11 @@ function AppWorkspace() {
             );
           })}
         </ul>
+        {hasMoreGames && (
+          <button className="mt-2 w-full rounded-lg px-2 py-1.5 text-xs text-accent hover:bg-accent/10" onClick={loadMoreGames} disabled={loadingMoreGames}>
+            {loadingMoreGames ? "Loading…" : "Load more games"}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -288,37 +413,36 @@ function AppWorkspace() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       {/* ---------- Top bar ---------- */}
-      {/* The top bar is the one piece of chrome on every screen, so it carries
-          the grain: it reads as the edge of the table the board sits on. */}
+      {/* A cream header with a restrained walnut edge. */}
       <header
-        className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-[#2F4A6B]
-                   bg-panel/80 px-3 shadow-[0_2px_10px_rgba(12,8,5,0.45)] backdrop-blur-xl"
+        className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-line/50
+                   bg-panel/90 px-3 shadow-[0_2px_10px_rgba(77,47,24,0.14)] backdrop-blur-xl"
       >
         <button
-          className="btn px-2 lg:hidden"
+          ref={gamesToggleRef}
+          className="btn shrink-0 px-2 text-xs lg:hidden"
           onClick={() => setDrawerOpen((s) => !s)}
-          aria-label="Toggle games list"
+          aria-expanded={drawerOpen}
+          aria-controls={drawerOpen ? "games-drawer" : undefined}
         >
-          ☰
+          Games
         </button>
         <button
-          className="btn hidden px-2 lg:block"
+          className="btn hidden shrink-0 px-2 text-xs lg:block"
           onClick={() => setRailOpen((s) => !s)}
-          aria-label="Toggle games list"
-          title="Toggle games list"
+          aria-expanded={railOpen}
+          aria-controls="games-rail"
         >
-          {railOpen ? "⟨" : "⟩"}
+          Games {railOpen ? "‹" : "›"}
         </button>
 
-        {/* The wordmark is set, not built: no badge, no gradient. The display
-            serif is doing the identifying, which is what a display serif is
-            for. */}
-        <Link href="/app" className="font-display text-lg leading-none text-ink">
-          ChessRabbit
+        <Link href="/app" aria-label="ChessRabbit home" className="inline-flex shrink-0 items-center gap-2 font-display text-lg leading-none text-ink">
+          <Image src="/chessrabbit-mark.svg" alt="" width={26} height={26} aria-hidden="true" />
+          <span className="hidden sm:inline">ChessRabbit</span>
         </Link>
 
         {/* Primary nav: one segmented pill group, no icon soup */}
-        <nav className="seg ml-2 hidden md:flex">
+        <nav className="seg ml-2 hidden lg:flex">
           {NAV.map((n) => (
             <Link
               key={n.href}
@@ -336,16 +460,16 @@ function AppWorkspace() {
             onClick={() => setSettingsOpen(true)}
             title="Analysis settings"
             aria-label="Analysis settings"
-            className="rounded-lg px-2 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/[0.07] hover:text-ink"
+            className="rounded-lg px-2 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ink/[0.07] hover:text-ink"
           >
             ⚙
           </button>
           {me.daily_limit !== null && (
-            <span className="hidden font-mono text-[11px] text-muted sm:inline">
+            <span className="hidden font-mono text-[11px] text-muted xl:inline">
               {me.analyses_today}/{me.daily_limit} today
             </span>
           )}
-          <span className="chip bg-ivory/10 text-muted">{me.local_mode ? "Local" : "Community"}</span>
+          <span className="chip hidden bg-ink/10 text-muted lg:inline-flex">{me.local_mode ? "Local" : "Community"}</span>
           <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
@@ -361,7 +485,7 @@ function AppWorkspace() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="card absolute right-0 top-full z-50 mt-2 w-60 p-1.5 shadow-card">
-                  <div className="mb-1 border-b border-ivory/[0.06] px-3 py-2">
+                  <div className="mb-1 border-b border-line/35 px-3 py-2">
                     <p className="truncate text-sm font-medium">
                       {me.display_name || me.email}
                     </p>
@@ -373,48 +497,44 @@ function AppWorkspace() {
                   </div>
                   {/* On a phone there is no room for the nav pills or the
                       More menu, so every destination appears here instead. */}
-                  <div className="mb-1 border-b border-ivory/[0.06] pb-1 md:hidden">
+                  <div className="mb-1 border-b border-line/35 pb-1 lg:hidden">
                     {MOBILE_NAV.map((n) => (
                       <Link
                         key={n.href}
                         href={n.href}
-                        className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                        className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ink/[0.06]"
                       >
                         {n.label}
                       </Link>
                     ))}
                   </div>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ink/[0.06]"
                     onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}
                   >
                     Analysis settings
                   </button>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ink/[0.06]"
                     onClick={() => { setMenuOpen(false); setImportOpen(true); }}
                   >
                     Import PGN
                   </button>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ink/[0.06]"
                     onClick={() => { setMenuOpen(false); openAccounts(); }}
                   >
                     Connected accounts
                   </button>
 
-                  <Link
-                    href="/download"
-                    className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ivory/[0.06]"
-                  >
-                    Download and setup
-                  </Link>
-                  <button
-                    className="mt-1 w-full rounded-lg border-t border-ivory/[0.06] px-3 py-1.5 pt-2 text-left text-sm text-bad hover:bg-bad/10"
-                    onClick={signOut}
-                  >
-                    Sign out
-                  </button>
+                  {me.local_mode ? (
+                    <p className="border-t border-line/35 px-3 py-2 text-xs text-muted">No account needed. Use File → App lock to add an optional password.</p>
+                  ) : (
+                    <>
+                      <Link href="/download" className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ink/[0.06]">Download and setup</Link>
+                      <button className="mt-1 w-full rounded-lg border-t border-line/35 px-3 py-1.5 pt-2 text-left text-sm text-bad hover:bg-bad/10" onClick={signOut}>Sign out</button>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -435,7 +555,8 @@ function AppWorkspace() {
       <div className="flex flex-1 lg:min-h-0">
         {/* Games rail - static on desktop, drawer on mobile */}
         <aside
-          className={`hidden w-[264px] shrink-0 border-r border-ivory/[0.07] bg-panel/40
+          id="games-rail"
+          className={`hidden w-[264px] shrink-0 border-r border-line/35 bg-panel/40
                       backdrop-blur-xl lg:block ${railOpen ? "" : "lg:hidden"}`}
         >
           {gamesRail}
@@ -445,9 +566,9 @@ function AppWorkspace() {
           <div className="fixed inset-0 z-50 lg:hidden">
             <div
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setDrawerOpen(false)}
+              onClick={closeDrawer}
             />
-            <aside className="absolute inset-y-0 left-0 w-[280px] animate-rise border-r border-ivory/10 bg-panel shadow-card">
+            <aside id="games-drawer" role="dialog" aria-modal="true" aria-label="My games" className="absolute inset-y-0 left-0 w-[280px] animate-rise border-r border-line/35 bg-panel shadow-card">
               {gamesRail}
             </aside>
           </div>
@@ -455,6 +576,8 @@ function AppWorkspace() {
 
         <main className="min-w-0 flex-1 lg:min-h-0">
           <AnalysisBoard
+            onOpenGames={openGames}
+            onImportPgn={openImport}
             initialPgn={activePgn}
             gameLabel={activeLabel}
             gameId={activeId}
@@ -481,8 +604,7 @@ function AppWorkspace() {
           >
             <h2 className="font-semibold">Connected accounts</h2>
             <p className="text-xs text-muted">
-              Link your Lichess or Chess.com username and your games import
-              automatically — newest first, synced nightly.
+              Enter a Lichess or Chess.com username to import public games — newest first, synced nightly. This does not sign in to either platform.
             </p>
 
             {accounts.length > 0 && (

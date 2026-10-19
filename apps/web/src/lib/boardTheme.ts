@@ -7,9 +7,7 @@ import { useSettings } from "@/lib/settings";
 /**
  * Board looks, shared by every board in the app (analysis, play, training).
  *
- * Each theme owns its own last-move highlight: a tint that reads on walnut is
- * invisible on slate, so the highlight travels with the squares rather than
- * being one global colour.
+ * Each theme owns its last-move highlight so user-selected boards remain clear.
  *
  * Types mirror react-chessboard's props (plain style records, not
  * CSSProperties) so a theme can be spread straight onto <Chessboard />.
@@ -25,19 +23,17 @@ export interface BoardTheme {
 }
 
 /**
- * The default is chalk on blue-slate, and the two colours it is NOT are load
- * bearing:
- *
- *   not brown  — timber is the one thing every chess site already looks like,
- *                and this app is a memory instrument, not a clubhouse table.
- *   not green  — verdigris means "you played the right move" everywhere else
- *                in the UI. A green board would spend that meaning on
- *                decoration and leave the verdict with nothing to say.
- *
- * The last-move tint is brass for the same reason: highlighting where a piece
- * came from is hardware, not a judgement.
+ * Walnut is the default; existing saved board IDs still resolve unchanged.
  */
 export const BOARD_THEMES: BoardTheme[] = [
+  {
+    id: "walnut",
+    label: "Walnut",
+    light: "#E4D9C4",
+    dark: "#9A7550",
+    fromTint: "rgba(255, 205, 74, 0.5)",
+    toTint: "rgba(255, 205, 74, 0.64)",
+  },
   {
     id: "slate",
     label: "Chalk & slate",
@@ -77,14 +73,6 @@ export const BOARD_THEMES: BoardTheme[] = [
     dark: "#6A5680",
     fromTint: "rgba(229, 190, 119, 0.48)",
     toTint: "rgba(229, 190, 119, 0.64)",
-  },
-  {
-    id: "walnut",
-    label: "Walnut",
-    light: "#E4D9C4",
-    dark: "#9A7550",
-    fromTint: "rgba(255, 205, 74, 0.5)",
-    toTint: "rgba(255, 205, 74, 0.64)",
   },
   {
     id: "contrast",

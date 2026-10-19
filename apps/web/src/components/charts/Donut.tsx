@@ -127,7 +127,7 @@ export default function Donut({
           <li
             key={a.key}
             className={`flex items-center gap-2 rounded px-1 py-0.5 transition-colors ${
-              active === a.key ? "bg-ivory/[0.07]" : ""
+              active === a.key ? "bg-ink/[0.07]" : ""
             }`}
             onMouseEnter={() => setActive(a.key)}
             onMouseLeave={() => setActive(null)}

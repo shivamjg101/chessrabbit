@@ -63,7 +63,7 @@ export default function RecallRule({
 
   const tone = correct === null ? "brass" : correct ? "accent" : "bad";
   const needleColor =
-    tone === "brass" ? "#C99C56" : tone === "accent" ? "#3FBFA3" : "#F2604E";
+    tone === "brass" ? "#7B4721" : tone === "accent" ? "#286047" : "#A0352A";
 
   return (
     <div className={className}>

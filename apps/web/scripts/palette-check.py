@@ -173,15 +173,15 @@ if __name__ == '__main__':
     # Keep in step with src/lib/vizTheme.ts and the `panel` colour in
     # tailwind.config.ts - the surface is what the contrast gate measures
     # against, so a change to the panel invalidates every number below.
-    SURFACE = '#152438'
-    OUTCOME = ['#7FD2B6', '#7C8CA6', '#D9584A']
-    SERIES = ['#5AA0E0', '#D9A356', '#35B29B', '#9080E6', '#D4688C', '#8CB43F']
-    SEQUENTIAL = ['#DEE8E1', '#A9CFC1', '#72B4A0', '#47907D', '#2C6A5C']
+    SURFACE = '#FFF8EA'
+    OUTCOME = ['#2E8056', '#65707E', '#922D25']
+    SERIES = ['#2D67A5', '#875413', '#286047', '#6C4D9D', '#9B3D64', '#597523']
+    SEQUENTIAL = ['#D9E8DC', '#A7CBAF', '#76AD83', '#4D8862', '#286047']
 
     ok = report('OUTCOME (diverging)', OUTCOME, SURFACE,
                 cvd_floor=10.0, normal_floor=15.0)
     ok &= report('SERIES (categorical)', SERIES, SURFACE,
-                 band=(40, 72), chroma_floor=28.0, cvd_adjacent_only=True)
+                 band=(25, 55), chroma_floor=20.0, cvd_adjacent_only=True)
 
     # A magnitude ramp is read against its neighbours, not against a legend,
     # so it is gated on step size rather than on hue separation.

@@ -63,12 +63,12 @@ For visibility reports, verify the URL-prefix property in [Google Search Console
 ## Editing
 
 - `index.html`: homepage, product facts, main download links and SoftwareApplication metadata.
-- `styles.css`: responsive styling, shared with the guides.
+- `styles.css` and `wood-theme.css`: responsive layout and the light oak palette, shared with the guides.
 - `site.js`: opening-position controls.
 - `guides.mjs`: guide text and search metadata.
 - `build.mjs`: dependency-free static generation, shared guide layout, board illustrations, sitemap and URL handling.
 - `indexnow-key.txt`: public site-ownership verification value; the build writes its matching verification file.
-- `assets/`: original rabbit favicon and 1200 × 630 PNG social preview.
+- `assets/`: rabbit-knight favicon and 1200 × 630 PNG social preview.
 - `check.mjs`: build checks, also run in GitHub Actions.
 
 Update the versioned installer URL in both `index.html` and `build.mjs` when publishing a new release. Verify product claims against the desktop documentation. Images and styles are local, with system fonts and no third-party font requests.

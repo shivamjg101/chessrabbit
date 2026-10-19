@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 
@@ -98,6 +99,7 @@ class ProfileUpdate(BaseModel):
 
 class GameOut(BaseModel):
     id: int
+    variant: Literal["standard", "chess960"] = "standard"
     white: str
     black: str
     white_elo: int | None
@@ -129,6 +131,7 @@ class SearchResults(BaseModel):
 
 class GameDetail(GameOut):
     movetext: str
+    start_fen: str | None = None
     annotations: list[AnnotationOut] = []
 
 
@@ -180,6 +183,7 @@ class AnnotationOut(BaseModel):
 class AnalysePositionRequest(BaseModel):
     engine: str = Field(default="stockfish", pattern=r"^[a-z0-9_-]{1,40}$")
     fen: str = Field(max_length=200)
+    variant: Literal["standard", "chess960"] = "standard"
     depth: int = Field(default=20, ge=1, le=40)
     multipv: int = Field(default=1, ge=1, le=10)
 
@@ -454,6 +458,18 @@ class ChapterCreate(BaseModel):
     starting_fen: str | None = Field(default=None, max_length=120)
     orientation: str = Field(default="white", pattern=ORIENTATION)
     from_game_id: int | None = None
+
+
+class ChapterImport(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=20_000)
+    pgn: str = Field(max_length=MAX_CHAPTER_PGN)
+    starting_fen: str | None = Field(default=None, max_length=120)
+    orientation: str = Field(default="white", pattern=ORIENTATION)
+
+
+class ChapterImportRequest(BaseModel):
+    chapters: list[ChapterImport] = Field(min_length=1, max_length=64)
 
 
 class ChapterUpdate(BaseModel):

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import SiteFooter from "@/components/SiteFooter";
 import RecallRule from "@/components/RecallRule";
 import DonateSection from "@/components/DonateSection";
@@ -51,21 +52,20 @@ function HeroBoard() {
           return (
             <div
               key={i}
-              className="grid place-items-center"
-              style={{ background: dark ? "#4A737E" : "#DCD9CC" }}
+              className={`grid place-items-center ${dark ? "bg-board-dark" : "bg-board-light"}`}
             >
               {piece && (
                 <span
                   className="select-none leading-none"
                   style={{
                     fontSize: "min(7.2vw, 38px)",
-                    color: white ? "#FBFAF6" : "#16202F",
+                    color: white ? "#FBFAF6" : "#302318",
                     // The pieces are one flat glyph each, so the only thing
                     // separating a white piece from a light square is this
                     // outline. Without it the back rank disappears.
                     textShadow: white
-                      ? "0 0 1px #16202F, 0 1px 2px rgba(3,8,18,0.5)"
-                      : "0 1px 2px rgba(3,8,18,0.3)",
+                      ? "0 0 1px #302318, 0 1px 2px rgba(48,35,24,0.5)"
+                      : "0 1px 2px rgba(48,35,24,0.3)",
                   }}
                 >
                   {GLYPH[piece.toLowerCase()]}
@@ -113,7 +113,10 @@ export default function LandingPage() {
     <>
       <header className="border-b border-brass/25">
         <div className="mx-auto flex max-w-6xl items-center gap-5 px-5 py-3">
-          <span className="font-display text-lg text-ink">ChessRabbit</span>
+          <span className="inline-flex items-center gap-2 font-display text-lg text-ink">
+            <Image src="/chessrabbit-mark.svg" alt="" width={26} height={26} aria-hidden="true" />
+            ChessRabbit
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <Link href="/login" className="btn">Sign in</Link>
             <Link href="/download" className="btn-primary">Download</Link>

@@ -15,6 +15,7 @@ guaranteeing live position analysis always has an engine available.
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import logging
 import os
@@ -119,11 +120,85 @@ async def set_job_status(conn, job_id: int, status: str, result: dict | None = N
                    result = COALESCE(%s::jsonb, result),
                    error = COALESCE(%s, error),
                    finished_at = CASE WHEN %s IN ('done','failed','canceled') THEN now() ELSE finished_at END
-             WHERE id = %s
+             WHERE id = %s AND status NOT IN ('done', 'failed', 'canceled')
             """,
             (status, json.dumps(result) if result else None, error, status, job_id),
         )
     await conn.commit()
+
+
+async def claim_job(conn, job_id: int) -> bool:
+    """Only one consumer may run a persisted queue row, even after replay."""
+    async with conn.cursor() as cur:
+        await cur.execute(
+            "UPDATE analysis_jobs SET status='running' WHERE id=%s AND status='queued' RETURNING id",
+            (job_id,),
+        )
+        claimed = await cur.fetchone() is not None
+    await conn.commit()
+    return claimed
+
+
+async def recover_jobs(redis, engine_ids: set[str], reset_running: bool = True) -> int:
+    """Rebuild the disposable Redis queues from unfinished database jobs."""
+    recovered = 0
+    pending_ids = set()
+    for engine_id in engine_ids:
+        for lane in ("interactive", "batch"):
+            for raw in await redis.lrange(f"q:{engine_id}:{lane}", 0, -1):
+                try:
+                    pending_ids.add(json.loads(raw)["job_id"])
+                except (ValueError, KeyError, TypeError):
+                    pass
+    async with await psycopg.AsyncConnection.connect(DATABASE_URL) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            if reset_running:
+                await cur.execute(
+                    "UPDATE analysis_jobs SET status='queued' WHERE status='running' AND kind IN ('position', 'full_game')"
+                )
+                await cur.execute(
+                    "UPDATE analysis_jobs SET status='failed', error='Application closed before move completed', finished_at=now() "
+                    "WHERE status IN ('queued', 'running') AND kind='play'"
+                )
+            await cur.execute(
+                "SELECT id, user_id, game_id, kind, params FROM analysis_jobs "
+                "WHERE status='queued' AND kind IN ('position', 'full_game') ORDER BY id"
+            )
+            rows = await cur.fetchall()
+        for row in rows:
+            if row["id"] in pending_ids:
+                continue
+            params = row["params"]
+            engine = params.get("engine", "stockfish")
+            if engine not in engine_ids:
+                await conn.execute(
+                    "UPDATE analysis_jobs SET status='failed', error='Configured engine unavailable after restart', "
+                    "finished_at=now() WHERE id=%s", (row["id"],),
+                )
+                continue
+            payload = {"job_id": row["id"], "user_id": row["user_id"], "kind": row["kind"],
+                       "engine": engine, **params}
+            if row["kind"] == "full_game":
+                payload["game_id"] = row["game_id"]
+            queue = f"q:{engine}:{'batch' if row['kind'] == 'full_game' else 'interactive'}"
+            await redis.rpush(queue, json.dumps(payload))
+            recovered += 1
+        await conn.commit()
+    if recovered:
+        log.info("Requeued %d unfinished analysis jobs", recovered)
+    return recovered
+
+
+async def reconcile_jobs(redis, pools: dict) -> None:
+    """Repair a queue lost while Redis was unavailable without restarting engines."""
+    while not shutdown.is_set():
+        try:
+            await asyncio.wait_for(shutdown.wait(), timeout=60)
+        except asyncio.TimeoutError:
+            try:
+                await recover_jobs(redis, set(pools), reset_running=False)
+            except Exception:
+                log.warning("Could not reconcile the analysis queue; retrying", exc_info=True)
 
 
 # ---------------------------------------------------------------
@@ -154,6 +229,9 @@ async def watch_cancel(redis, job_id: int, stop_event: asyncio.Event) -> None:
     channel = f"{CANCEL_PREFIX}{job_id}"
     await pubsub.subscribe(channel)
     try:
+        if await is_abandoned(redis, job_id):
+            stop_event.set()
+            return
         async for message in pubsub.listen():
             if message.get("type") == "message":
                 stop_event.set()
@@ -175,6 +253,7 @@ async def handle_position_job(pool: EnginePool, redis, conn, job: dict) -> None:
     fen = job["fen"]
     depth = min(int(job.get("depth", 20)), 40)
     multipv = max(1, min(int(job.get("multipv", 1)), 10))
+    chess960 = job.get("variant") == "chess960"
     channel = f"eval:{job_id}"
 
     # Cheapest possible check, before the engine or the database is touched.
@@ -184,18 +263,20 @@ async def handle_position_job(pool: EnginePool, redis, conn, job: dict) -> None:
         return
 
     try:
-        chess.Board(fen)  # validate before handing anything to the engine
+        board = chess.Board(fen, chess960=chess960)
+        if not board.is_valid():
+            raise ValueError("Position is not legal")
     except ValueError as exc:
         await redis.publish(channel, json.dumps({"type": "error", "message": f"Invalid FEN: {exc}"}))
         await set_job_status(conn, job_id, "failed", error=f"Invalid FEN: {exc}")
         return
 
-    zob = zobrist_of(fen)
-    wtm = white_to_move(fen)
+    zob = zobrist_of(fen) if not chess960 else None
+    wtm = board.turn == chess.WHITE
 
-    cached = await cache_lookup(conn, zob, pool.cache_key, depth, multipv)
+    cached = await cache_lookup(conn, zob, pool.cache_key, depth, multipv) if zob is not None else None
     if cached:
-        payload = {"type": "done", "cached": True, "depth": cached["depth"], "lines": cached["multipv"][:multipv], "engine": job.get("engine", "stockfish")}
+        payload = {"type": "done", "cached": True, "depth": cached["depth"], "lines": cached["multipv"][:multipv], "engine": job.get("engine", "stockfish"), "engine_version": pool.version, "engine_cache_key": pool.cache_key}
         await redis.publish(channel, json.dumps(payload))
         await set_job_status(conn, job_id, "done", result=payload)
         log.info("job %s: cache hit at depth %s", job_id, cached["depth"])
@@ -210,19 +291,21 @@ async def handle_position_job(pool: EnginePool, redis, conn, job: dict) -> None:
     # thrown away - the next visitor to this position starts from it.
     stop_event = asyncio.Event()
     watcher = asyncio.create_task(watch_cancel(redis, job_id, stop_event))
+    stream = None
 
     try:
         async with pool.acquire() as engine:
-            async for item in engine.analyse(
+            stream = engine.analyse(
                 fen, depth=depth, multipv=multipv, movetime_ms=MAX_MOVETIME_MS,
-                stop_event=stop_event,
-            ):
+                stop_event=stop_event, chess960=chess960,
+            )
+            async for item in stream:
                 if isinstance(item, dict) and item.get("type") == "bestmove":
                     lines = [
                         best_by_pv[k].to_white_perspective(wtm).as_dict()
                         for k in sorted(best_by_pv)
                     ]
-                    if reached_depth:
+                    if reached_depth and zob is not None:
                         await cache_store(conn, zob, fen, pool.cache_key, reached_depth, lines)
 
                     # A stopped search still reached a real depth; bank it, but
@@ -239,6 +322,9 @@ async def handle_position_job(pool: EnginePool, redis, conn, job: dict) -> None:
                         "type": "done",
                         "cached": False,
                         "engine": job.get("engine", "stockfish"),
+                        "engine_version": pool.version,
+                        "engine_cache_key": f"{pool.cache_key}:chess960" if chess960 else pool.cache_key,
+                        "variant": "chess960" if chess960 else "standard",
                         "depth": reached_depth,
                         "best": item.get("move"),
                         "lines": lines,
@@ -256,14 +342,18 @@ async def handle_position_job(pool: EnginePool, redis, conn, job: dict) -> None:
                 await redis.publish(channel, json.dumps({"type": "info", **norm.as_dict()}))
 
                 # Persist at checkpoint depths so partial work survives a crash
-                if ev.depth in CHECKPOINT_DEPTHS and ev.multipv == multipv:
+                if zob is not None and ev.depth in CHECKPOINT_DEPTHS and ev.multipv == multipv:
                     snapshot = [
                         best_by_pv[k].to_white_perspective(wtm).as_dict()
                         for k in sorted(best_by_pv)
                     ]
                     await cache_store(conn, zob, fen, pool.cache_key, ev.depth, snapshot)
     finally:
-        watcher.cancel()
+        try:
+            if stream is not None:
+                await stream.aclose()
+        finally:
+            watcher.cancel()
 
 
 async def handle_play_job(pool: EnginePool, redis, conn, job: dict) -> None:
@@ -299,7 +389,6 @@ async def handle_play_job(pool: EnginePool, redis, conn, job: dict) -> None:
         async for item in engine.analyse(fen, multipv=1, movetime_ms=movetime, skill=skill):
             if isinstance(item, dict) and item.get("type") == "bestmove":
                 move = item.get("move")
-                break
 
     payload = {"type": "done", "best": move}
     await redis.publish(channel, json.dumps(payload))
@@ -319,7 +408,7 @@ async def handle_full_game_job(pool: EnginePool, redis, conn, job: dict) -> None
     channel = f"eval:{job_id}"
 
     async with conn.cursor(row_factory=dict_row) as cur:
-        await cur.execute("SELECT id, movetext FROM games WHERE id = %s", (game_id,))
+        await cur.execute("SELECT id, movetext, owner_id, variant, start_fen FROM games WHERE id = %s", (game_id,))
         game = await cur.fetchone()
 
     if not game:
@@ -328,34 +417,47 @@ async def handle_full_game_job(pool: EnginePool, redis, conn, job: dict) -> None
 
     await set_job_status(conn, job_id, "running")
 
-    board = chess.Board()
+    chess960 = game["variant"] == "chess960"
     posinfo: list[dict] = []  # per position: {cp, mate, pv} in White perspective
     fens: list[str] = []
     zobs: list[int] = []
     moves: list[chess.Move] = []
 
     try:
-        import io
-        pgn_game = chess.pgn.read_game(io.StringIO(game["movetext"]))
-        if pgn_game is None:
+        headers = ['[Variant "Chess960"]'] if chess960 else []
+        if game["start_fen"]:
+            headers.extend(['[SetUp "1"]', f'[FEN "{game["start_fen"]}"]'])
+        source = "\n".join(headers) + "\n\n" + game["movetext"] if headers else game["movetext"]
+        pgn_game = chess.pgn.read_game(io.StringIO(source))
+        if pgn_game is None or pgn_game.errors:
             raise ValueError("Unparseable movetext")
+        board = pgn_game.board()
+        if board.chess960 != chess960:
+            raise ValueError("Stored variant does not match starting position")
         moves = list(pgn_game.mainline_moves())
     except Exception as exc:
         await set_job_status(conn, job_id, "failed", error=f"PGN parse error: {exc}")
         return
 
     total = len(moves) + 1
+    searched = False
     async with pool.acquire() as engine:
+        if chess960 and "UCI_Chess960" not in engine.supported_options:
+            message = "Selected engine does not support UCI_Chess960"
+            await set_job_status(conn, job_id, "failed", error=message)
+            await redis.publish(channel, json.dumps({"type": "error", "message": message}))
+            return
         for idx in range(total):
-            if shutdown.is_set():
+            if shutdown.is_set() or await is_abandoned(redis, job_id):
                 await set_job_status(conn, job_id, "canceled")
                 return
 
-            fen = board.fen()
-            zob = zobrist_of(fen)
+            fen = board.fen(shredder=chess960)
+            zob = zobrist_of(fen) if not chess960 else None
             wtm = board.turn == chess.WHITE
             fens.append(fen)
-            zobs.append(zob)
+            if zob is not None:
+                zobs.append(zob)
 
             # Terminal positions: score by rule. Asking the engine about a
             # finished game yields "mate 0", which mis-signs the eval and
@@ -379,7 +481,7 @@ async def handle_full_game_job(pool: EnginePool, redis, conn, job: dict) -> None
                     board.push(moves[idx])
                 continue
 
-            cached = await cache_lookup(conn, zob, pool.cache_key, depth)
+            cached = await cache_lookup(conn, zob, pool.cache_key, depth) if zob is not None else None
             if cached:
                 lines = cached["multipv"]
                 first = lines[0] if lines else {}
@@ -390,15 +492,20 @@ async def handle_full_game_job(pool: EnginePool, redis, conn, job: dict) -> None
                 })
             else:
                 best: EvalLine | None = None
-                async for item in engine.analyse(fen, depth=depth, multipv=1, movetime_ms=MAX_MOVETIME_MS):
+                async for item in engine.analyse(
+                    fen, depth=depth, multipv=1, movetime_ms=MAX_MOVETIME_MS,
+                    chess960=chess960, new_game=not searched,
+                ):
                     if isinstance(item, dict):
-                        break
+                        continue
                     best = item
+                searched = True
                 if best is None:
                     posinfo.append({"cp": 0.0, "mate": None, "pv": []})
                 else:
                     d = best.to_white_perspective(wtm).as_dict()
-                    await cache_store(conn, zob, fen, pool.cache_key, d["depth"], [d])
+                    if zob is not None:
+                        await cache_store(conn, zob, fen, pool.cache_key, d["depth"], [d])
                     posinfo.append({
                         "cp": _line_to_cp(d),
                         "mate": d.get("mate"),
@@ -413,9 +520,27 @@ async def handle_full_game_job(pool: EnginePool, redis, conn, job: dict) -> None
             if idx < len(moves):
                 board.push(moves[idx])
 
-    book_plies = await _book_plies(conn, zobs, moves)
-    annotations = _build_reviews(moves, fens, posinfo, book_plies)
+    if shutdown.is_set() or await is_abandoned(redis, job_id):
+        await set_job_status(conn, job_id, "canceled")
+        return
+    book_plies = await _book_plies(conn, zobs, moves) if not chess960 else set()
+    annotations = _build_reviews(moves, fens, posinfo, book_plies, chess960=chess960)
     await _store_annotations(conn, game_id, user_id, annotations)
+
+    if not chess960 and game["owner_id"] == user_id:
+        try:
+            await _store_mistake_cards(conn, user_id, _mistake_card_rows(annotations, fens))
+        except Exception:
+            await conn.rollback()
+            log.exception("job %s: could not create training cards", job_id)
+        try:
+            await _store_personal_puzzles(
+                conn, user_id,
+                _personal_puzzle_rows(game_id, annotations, moves, fens, posinfo),
+            )
+        except Exception:
+            await conn.rollback()
+            log.exception("job %s: could not create personal puzzles", job_id)
 
     evals = [p["cp"] for p in posinfo]
     accuracy = _accuracy_scores(evals)
@@ -453,9 +578,9 @@ async def _book_plies(conn, zobs: list[int], moves: list) -> set[int]:
     return {i for i in range(limit) if (zobs[i], moves[i].uci()) in known}
 
 
-def _san_line(fen: str, pv: list[str], limit: int = 5) -> str:
+def _san_line(fen: str, pv: list[str], limit: int = 5, chess960: bool = False) -> str:
     """Render the first few PV moves as a readable SAN line."""
-    board = chess.Board(fen)
+    board = chess.Board(fen, chess960=chess960)
     sans: list[str] = []
     for uci in pv[:limit]:
         try:
@@ -478,8 +603,125 @@ def _mate_for(info: dict, white: bool) -> int | None:
 NAG_BY_CLASS = {"blunder": 4, "mistake": 2, "inaccuracy": 6}
 
 
+def _mistake_card_rows(annotations: list[dict], fens: list[str]) -> list[dict]:
+    """One legal, deduplicated answer per mistaken position in this review."""
+    rows: list[dict] = []
+    seen: set[tuple[str, int]] = set()
+    for annotation in annotations:
+        if annotation["classification"] not in {"mistake", "blunder"}:
+            continue
+        ply, uci = annotation["ply"], annotation["best_uci"]
+        if not uci or ply >= len(fens):
+            continue
+        board = chess.Board(fens[ply])
+        try:
+            move = chess.Move.from_uci(uci)
+        except ValueError:
+            continue
+        if move not in board.legal_moves:
+            continue
+        color = "white" if board.turn == chess.WHITE else "black"
+        zobrist = zobrist_of(board.fen())
+        if (color, zobrist) in seen:
+            continue
+        seen.add((color, zobrist))
+        rows.append({
+            "color": color, "zobrist": zobrist, "fen": board.fen(),
+            "expected_uci": uci, "expected_san": board.san(move),
+        })
+    return rows
+
+
+async def _store_mistake_cards(conn, user_id: int, rows: list[dict]) -> None:
+    if not rows:
+        return
+    names = {"white": "♞ My Blunders (White)", "black": "♞ My Blunders (Black)"}
+    async with conn.cursor() as cur:
+        # The API's manual sync takes the same lock, so neither path creates a
+        # second auto-repertoire while a review is finishing.
+        await cur.execute("SELECT pg_advisory_xact_lock(%s)", (user_id,))
+        reps = {}
+        for color in {row["color"] for row in rows}:
+            await cur.execute(
+                "SELECT id FROM repertoires WHERE user_id = %s AND name = %s LIMIT 1",
+                (user_id, names[color]),
+            )
+            found = await cur.fetchone()
+            if found:
+                reps[color] = found[0]
+            else:
+                await cur.execute(
+                    "INSERT INTO repertoires (user_id, name, color) VALUES (%s, %s, %s) RETURNING id",
+                    (user_id, names[color], color),
+                )
+                reps[color] = (await cur.fetchone())[0]
+        # ponytail: keep a learnt card's original answer when a later engine
+        # review disagrees; explicit card rebuilding can be added if needed.
+        await cur.executemany(
+            """INSERT INTO training_cards
+                 (repertoire_id, user_id, zobrist, fen, expected_uci, expected_san)
+               VALUES (%s, %s, %s, %s, %s, %s)
+               ON CONFLICT (repertoire_id, zobrist) DO NOTHING""",
+            [
+                (reps[row["color"]], user_id, row["zobrist"], row["fen"],
+                 row["expected_uci"], row["expected_san"])
+                for row in rows
+            ],
+        )
+    await conn.commit()
+
+
+def _personal_puzzle_rows(
+    game_id: int, annotations: list[dict], moves: list[chess.Move],
+    fens: list[str], posinfo: list[dict],
+) -> list[dict]:
+    """Use only legal three-ply continuations after a reviewed blunder."""
+    rows = []
+    for annotation in annotations:
+        ply = annotation["ply"]
+        if annotation["classification"] != "blunder" or ply + 1 >= len(posinfo):
+            continue
+        pv = posinfo[ply + 1].get("pv") or []
+        if len(pv) < 3:
+            continue
+        board = chess.Board(fens[ply])
+        line = [moves[ply].uci(), *pv[:3]]
+        try:
+            for uci in line:
+                move = chess.Move.from_uci(uci)
+                if move not in board.legal_moves:
+                    raise ValueError("Illegal engine continuation")
+                board.push(move)
+        except ValueError:
+            continue
+        rows.append({
+            "lichess_id": f"personal-{game_id}-{ply}",
+            "fen": fens[ply], "moves": " ".join(line),
+            "rating": 1200, "themes": "fromMyGames",
+        })
+    return rows
+
+
+async def _store_personal_puzzles(conn, user_id: int, rows: list[dict]) -> None:
+    if not rows:
+        return
+    async with conn.cursor() as cur:
+        await cur.executemany(
+            """INSERT INTO puzzles (owner_id, lichess_id, fen, moves, rating, themes)
+               VALUES (%s, %s, %s, %s, %s, %s)
+               ON CONFLICT (lichess_id) DO NOTHING""",
+            [
+                (user_id, row["lichess_id"], row["fen"], row["moves"],
+                 row["rating"], row["themes"])
+                for row in rows
+            ],
+        )
+    await conn.commit()
+
+
 def _build_reviews(
-    moves: list, fens: list[str], posinfo: list[dict], book_plies: set[int]
+    moves: list, fens: list[str], posinfo: list[dict], book_plies: set[int],
+    chess960: bool = False,
 ) -> list[dict]:
     """
     Chess.com-style review: classify every move and explain it from engine
@@ -493,8 +735,8 @@ def _build_reviews(
 
         info, nxt = posinfo[i], posinfo[i + 1]
         white_moved = i % 2 == 0
-        board = chess.Board(fens[i])
-        after = chess.Board(fens[i + 1])
+        board = chess.Board(fens[i], chess960=chess960)
+        after = chess.Board(fens[i + 1], chess960=chess960)
 
         pv = info["pv"]
         best_uci = pv[0] if pv else None
@@ -504,7 +746,7 @@ def _build_reviews(
         if best_uci and not played_is_best:
             try:
                 best_san = board.san(chess.Move.from_uci(best_uci))
-                line = _san_line(fens[i], pv)
+                line = _san_line(fens[i], pv, chess960=chess960)
             except Exception:
                 pass
 
@@ -724,6 +966,8 @@ async def consume(consumer_id: int, queues: list[str], pool: EnginePool, redis) 
             _queue, raw = popped
             job = json.loads(raw)
             kind = job.get("kind", "position")
+            if not await claim_job(conn, job["job_id"]):
+                continue
             log.info("Consumer %d picked up job %s (%s) from %s",
                      consumer_id, job.get("job_id"), kind, _queue)
 
@@ -768,7 +1012,9 @@ async def main() -> None:
         log.info("Engine %s: %s", entry["id"], entry.get("version") or entry.get("error"))
     redis = aioredis.from_url(REDIS_URL, decode_responses=True)
     await redis.set(CATALOG_KEY, json.dumps(catalog), ex=90)
+    await recover_jobs(redis, set(pools))
     heartbeat = asyncio.create_task(advertise(redis, catalog))
+    reconciliation = asyncio.create_task(reconcile_jobs(redis, pools))
     consumers = []
     for engine_id, pool in pools.items():
         for i in range(pool.size):
@@ -783,7 +1029,8 @@ async def main() -> None:
             await shutdown.wait()
     finally:
         heartbeat.cancel()
-        await asyncio.gather(heartbeat, return_exceptions=True)
+        reconciliation.cancel()
+        await asyncio.gather(heartbeat, reconciliation, return_exceptions=True)
         for pool in pools.values():
             await pool.stop()
         await redis.delete(CATALOG_KEY)

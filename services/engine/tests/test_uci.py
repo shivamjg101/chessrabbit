@@ -48,6 +48,20 @@ async def test_uci_leela_options_search_and_missing_stockfish_options(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_same_game_search_keeps_hash_until_the_next_game(tmp_path):
+    script, log = tmp_path / "fake.py", tmp_path / "commands.txt"
+    script.write_text(FAKE)
+    engine = StockfishEngine(binary=sys.executable, args=[str(script), str(log)])
+    try:
+        await engine.start()
+        for new_game in (True, False, True):
+            _ = [item async for item in engine.analyse("test-fen", depth=8, new_game=new_game)]
+        assert log.read_text().splitlines().count("ucinewgame") == 2
+    finally:
+        await engine.close()
+
+
+@pytest.mark.asyncio
 async def test_engine_exit_is_reported_as_failure(tmp_path):
     script, log = tmp_path / "fake.py", tmp_path / "commands.txt"
     script.write_text(FAKE)
@@ -69,6 +83,24 @@ def test_network_contents_options_and_profile_id_partition_cache(tmp_path):
     weights.write_bytes(b"second network")
     assert profile_fingerprint(profile, "Lc0") != first
     assert profile_fingerprint({**profile, "id": "another"}, "Lc0") != profile_fingerprint(profile, "Lc0")
+
+
+@pytest.mark.asyncio
+async def test_chess960_option_is_enabled_for_variant_and_reset_for_standard(tmp_path):
+    script, log = tmp_path / "fake.py", tmp_path / "commands.txt"
+    script.write_text(FAKE.replace(
+        'print("option name MultiPV type spin default 1 min 1 max 10")',
+        'print("option name MultiPV type spin default 1 min 1 max 10")\n        print("option name UCI_Chess960 type check default false")',
+    ))
+    engine = StockfishEngine(binary=sys.executable, args=[str(script), str(log)])
+    try:
+        await engine.start()
+        _ = [item async for item in engine.analyse("test-fen", chess960=True)]
+        _ = [item async for item in engine.analyse("test-fen")]
+        commands = log.read_text()
+        assert commands.index("setoption name UCI_Chess960 value true") < commands.index("setoption name UCI_Chess960 value false")
+    finally:
+        await engine.close()
 
 
 @pytest.mark.asyncio
