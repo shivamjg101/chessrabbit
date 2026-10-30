@@ -32,7 +32,9 @@ jobs:
         # runtime file alone is why the tests under apps/api/tests never ran.
         run: pip install -r apps/api/requirements-dev.txt
       - name: Lint
-        run: ruff check apps/api services/engine pipeline
+        # The desktop backend and the smoke scripts ship too; they were the
+        # Python left out of every check.
+        run: ruff check apps/api services/engine pipeline apps/desktop/backend scripts
       - name: Apply migrations
         # Every migration, in filename order - the same order initdb applies
         # them to a fresh docker volume. Only 001 used to run here, so 002
@@ -107,6 +109,21 @@ jobs:
           asyncio.run(smoke())
           PY
 
+  engine-windows:
+    # The desktop app drives engines through uci.py's Windows pipe wrapper,
+    # where a dead engine fails differently (EINVAL, not EPIPE). That path
+    # raised a raw OSError instead of "Engine exited" and passed on Linux.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install engine deps
+        run: pip install -r services/engine/requirements.txt pytest pytest-asyncio
+      - name: UCI profile regression tests
+        run: python -m pytest services/engine/tests -q
+
   web:
     runs-on: ubuntu-latest
     steps:
@@ -136,6 +153,18 @@ jobs:
         run: docker compose up --build -d
       - name: Personal workspace and Stockfish analysis smoke test
         run: python scripts/smoke_local.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Browser end-to-end test
+        # Every page, plus import, the database reports, a review, the novelty
+        # finder, position search and a move against the computer - through
+        # the built interface, not the API. Playwright is installed outside
+        # the repo so the web app's lockfile is untouched.
+        run: |
+          npm install --prefix "$RUNNER_TEMP/e2e" --no-save --no-package-lock --no-audit --no-fund playwright@1.62.1
+          "$RUNNER_TEMP/e2e/node_modules/.bin/playwright" install --with-deps chromium
+          NODE_PATH="$RUNNER_TEMP/e2e/node_modules" node scripts/e2e_browser.cjs http://localhost:3000
       - name: Logs
         if: failure()
         run: docker compose logs --tail=100

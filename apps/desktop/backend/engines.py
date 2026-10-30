@@ -11,6 +11,10 @@ from registry import CATALOG_KEY, profile_fingerprint, start_profiles
 from uci import EnginePool
 import worker
 
+# One process for reviews and anything else, one kept for interactive work.
+# Added engines (Lc0 especially, on a GPU) stay at one process.
+STOCKFISH_PROCESSES = 2
+
 
 class DesktopEngines:
     def __init__(self, redis, config: Path):
@@ -23,13 +27,18 @@ class DesktopEngines:
         self.lock = asyncio.Lock()
 
     def consume(self, engine_id, pool):
+        interactive, batch = f"q:{engine_id}:interactive", f"q:{engine_id}:batch"
+        # With more than one process the last never takes a batch job, so a
+        # running game review cannot hold up live analysis or a reply in play.
         self.tasks[engine_id] = [asyncio.create_task(worker.consume(
-            i, [f"q:{engine_id}:interactive", f"q:{engine_id}:batch"], pool, self.redis,
+            i, [interactive] if pool.size > 1 and i == pool.size - 1 else [interactive, batch], pool, self.redis,
         )) for i in range(pool.size)]
 
     async def start(self):
         worker.shutdown = asyncio.Event()
-        self.pools, self.catalog = await start_profiles(1, worker.THREADS, worker.HASH_MB)
+        self.pools, self.catalog = await start_profiles(
+            1, worker.THREADS, worker.HASH_MB, sizes={"stockfish": STOCKFISH_PROCESSES},
+        )
         await self.redis.set(CATALOG_KEY, json.dumps(self.catalog), ex=90)
         self.heartbeat = asyncio.create_task(worker.advertise(self.redis, self.catalog))
         for engine_id, pool in self.pools.items():

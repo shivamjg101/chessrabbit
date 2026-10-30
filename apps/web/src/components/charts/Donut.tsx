@@ -126,7 +126,7 @@ export default function Donut({
         {arcs.map((a) => (
           <li
             key={a.key}
-            className={`flex items-center gap-2 rounded px-1 py-0.5 transition-colors ${
+            className={`flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors ${
               active === a.key ? "bg-ivory/[0.07]" : ""
             }`}
             onMouseEnter={() => setActive(a.key)}

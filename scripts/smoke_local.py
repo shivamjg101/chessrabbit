@@ -2,6 +2,7 @@
 
 import json
 import time
+import uuid
 import urllib.error
 import urllib.request
 
@@ -53,7 +54,11 @@ def main():
         raise RuntimeError("Stockfish did not become ready")
     job = request("/analysis/position", {"fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "engine": "stockfish", "depth": 8, "multipv": 2}, "POST")
     assert len(wait_for_job(job["job_id"])["result"]["lines"]) == 2
-    imported = request("/games", {"pgn": '[White "Local"]\n[Black "Smoke test"]\n[Result "*"]\n\n1. e4 e5 *'}, "POST")
+    # A different game each run: a run that died before its cleanup would
+    # otherwise leave a copy behind, and the next import is a skipped duplicate.
+    pgn = f'[White "Local"]\n[Black "Smoke test {uuid.uuid4().hex[:8]}"]\n[Result "*"]\n\n1. e4 e5 *'
+    imported = request("/games", {"pgn": pgn}, "POST")
+    assert imported["imported"] == 1
     game_id = imported["game_ids"][0]
     try:
         review = request(f"/analysis/game/{game_id}?engine=stockfish&depth=8", method="POST")

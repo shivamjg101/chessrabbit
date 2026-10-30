@@ -62,7 +62,7 @@ export default function PrepPage() {
 
   return (
     <div className="min-h-screen p-4 max-w-4xl mx-auto">
-      <header className="flex items-center gap-3 mb-6 flex-wrap">
+      <header className="glass relative z-30 mb-6 flex flex-wrap items-center gap-3 rounded-2xl px-3 py-2.5">
         <Link href="/app" className="btn">← Board</Link>
         <h1 className="font-display text-xl">🎯 Opponent Prep</h1>
 
@@ -71,7 +71,7 @@ export default function PrepPage() {
 
       {me && (
         <>
-          <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4 flex gap-2 flex-wrap items-end">
+          <div className="card p-4 flex gap-2 flex-wrap items-end">
             <div>
               <label className="text-xs text-muted block mb-1">Platform</label>
               <select
@@ -120,7 +120,7 @@ export default function PrepPage() {
                 <LineTable title="When they play Black" lines={dossier.as_black} />
               </div>
 
-              <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4 flex gap-3 items-center flex-wrap">
+              <div className="card p-4 flex gap-3 items-center flex-wrap">
                 <span className="text-sm">Build a counter-repertoire — I&apos;ll play</span>
                 <select
                   className="input w-28"
@@ -156,7 +156,7 @@ export default function PrepPage() {
 
 function LineTable({ title, lines }: { title: string; lines: PrepLine[] }) {
   return (
-    <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4">
+    <div className="card p-4">
       <h3 className="font-semibold text-sm mb-2">{title}</h3>
       {lines.length === 0 ? (
         <p className="text-xs text-muted">No recent games with this colour.</p>
@@ -170,7 +170,7 @@ function LineTable({ title, lines }: { title: string; lines: PrepLine[] }) {
                   <span className="font-mono truncate">{l.moves.join(" ")}</span>
                   <span className="text-muted shrink-0">×{l.count}</span>
                 </div>
-                <div className="flex h-1.5 rounded overflow-hidden mt-1 bg-black/30">
+                <div className="flex h-1.5 rounded-md overflow-hidden mt-1 bg-black/30">
                   <div className="bg-accent" style={{ width: `${(100 * l.wins) / total}%` }} />
                   <div className="bg-muted/60" style={{ width: `${(100 * l.draws) / total}%` }} />
                   <div className="bg-bad/70" style={{ width: `${(100 * l.losses) / total}%` }} />

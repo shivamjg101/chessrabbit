@@ -154,6 +154,10 @@ async def watch_cancel(redis, job_id: int, stop_event: asyncio.Event) -> None:
     channel = f"{CANCEL_PREFIX}{job_id}"
     await pubsub.subscribe(channel)
     try:
+        # A cancel published before the subscription landed is only in the key.
+        if await is_abandoned(redis, job_id):
+            stop_event.set()
+            return
         async for message in pubsub.listen():
             if message.get("type") == "message":
                 stop_event.set()
@@ -294,9 +298,13 @@ async def handle_play_job(pool: EnginePool, redis, conn, job: dict) -> None:
         return
 
     await set_job_status(conn, job_id, "running")
+    # A weakened Stockfish picks its move when the search reaches depth
+    # 1 + Skill Level and ignores everything searched after that, so stopping
+    # there returns the same reply without sitting out the rest of the movetime.
+    depth = skill + 1 if skill < 20 else 20
     move = None
     async with pool.acquire() as engine:
-        async for item in engine.analyse(fen, multipv=1, movetime_ms=movetime, skill=skill):
+        async for item in engine.analyse(fen, depth=depth, multipv=1, movetime_ms=movetime, skill=skill):
             if isinstance(item, dict) and item.get("type") == "bestmove":
                 move = item.get("move")
                 break
@@ -340,6 +348,9 @@ async def handle_full_game_job(pool: EnginePool, redis, conn, job: dict) -> None
         if pgn_game is None:
             raise ValueError("Unparseable movetext")
         moves = list(pgn_game.mainline_moves())
+        # A game from a set-up position carries its [FEN] in the movetext;
+        # replayed from the opening array its moves are illegal.
+        board = pgn_game.board()
     except Exception as exc:
         await set_job_status(conn, job_id, "failed", error=f"PGN parse error: {exc}")
         return
@@ -709,9 +720,19 @@ async def _store_annotations(
 # Main loop
 # ---------------------------------------------------------------
 
+async def connect() -> psycopg.AsyncConnection:
+    conn = await psycopg.AsyncConnection.connect(DATABASE_URL, autocommit=False)
+    # Everything a worker writes - cached evaluations, job status, review rows -
+    # can be recomputed, so its commits do not wait for the WAL to reach disk.
+    # Other sessions still see each commit immediately.
+    await conn.execute("SET synchronous_commit TO off")
+    await conn.commit()
+    return conn
+
+
 async def consume(consumer_id: int, queues: list[str], pool: EnginePool, redis) -> None:
     """One consumer: own DB connection, drains `queues` in priority order."""
-    conn = await psycopg.AsyncConnection.connect(DATABASE_URL, autocommit=False)
+    conn = await connect()
     log.info("Consumer %d up (queues=%s)", consumer_id, queues)
 
     while not shutdown.is_set():
@@ -745,7 +766,7 @@ async def consume(consumer_id: int, queues: list[str], pool: EnginePool, redis) 
                     await redis.publish(f"eval:{job['job_id']}", json.dumps({"type": "error", "code": "engine_failed", "message": "Engine job failed; check worker logs"}))
             except Exception:
                 try:
-                    conn = await psycopg.AsyncConnection.connect(DATABASE_URL, autocommit=False)
+                    conn = await connect()
                 except Exception:
                     log.warning("Consumer %d: Postgres unreachable, retrying shortly", consumer_id)
                     await asyncio.sleep(2)

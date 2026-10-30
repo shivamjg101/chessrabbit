@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Wordmark from "@/components/Wordmark";
 import { API_URL } from "@/lib/api";
 
 function ResetForm() {
@@ -55,7 +56,7 @@ function ResetForm() {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {error && <p className="text-sm text-bad">{error}</p>}
+      {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
       <input
         className="input"
         type="password"
@@ -82,7 +83,8 @@ function ResetForm() {
 export default function ResetPage() {
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-4">
+      <div className="card w-full max-w-sm animate-rise space-y-4 p-7">
+        <Wordmark href="/" className="mb-3" />
         <h1 className="font-display text-3xl leading-none">Choose a new password</h1>
         <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
           <ResetForm />

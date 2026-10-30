@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Wordmark from "@/components/Wordmark";
 import { API_URL } from "@/lib/api";
 
 export default function ForgotPage() {
@@ -25,7 +26,8 @@ export default function ForgotPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-4">
+      <div className="card w-full max-w-sm animate-rise space-y-4 p-7">
+        <Wordmark href="/" className="mb-3" />
         <h1 className="font-display text-3xl leading-none">Reset password</h1>
 
         {sent ? (

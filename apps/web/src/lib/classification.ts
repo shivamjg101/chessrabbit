@@ -34,12 +34,12 @@ export const CLASS_META: Record<
   { glyph: string; color: string; label: string; bg: string }
 > = {
   book: { glyph: "◆", color: "text-[#8FA9CE]", label: "Book", bg: "#8FA9CE" },
-  best: { glyph: "★", color: "text-accent", label: "Best", bg: "#2FBFA3" },
-  excellent: { glyph: "✓", color: "text-good", label: "Excellent", bg: "#9AD3BF" },
+  best: { glyph: "★", color: "text-accent", label: "Best", bg: "#70C586" },
+  excellent: { glyph: "✓", color: "text-good", label: "Excellent", bg: "#B6E1B8" },
   good: { glyph: "✓", color: "text-[#9DB0AC]", label: "Good", bg: "#9DB0AC" },
   inaccuracy: { glyph: "?!", color: "text-[#F2D177]", label: "Inaccuracy", bg: "#F2D177" },
-  mistake: { glyph: "?", color: "text-warn", label: "Mistake", bg: "#EDA04B" },
-  blunder: { glyph: "??", color: "text-bad", label: "Blunder", bg: "#F2604E" },
+  mistake: { glyph: "?", color: "text-warn", label: "Mistake", bg: "#EE9E46" },
+  blunder: { glyph: "??", color: "text-bad", label: "Blunder", bg: "#E66250" },
 };
 
 /** Order used wherever verdicts are listed: strongest first, worst last. */

@@ -1,37 +1,33 @@
 import type { Config } from "tailwindcss";
 
-// Ink and brass — a study, not a clubhouse.
+// Glass on walnut.
 //
-// The previous palette was walnut: a wooden board on a dark table, with
-// chess.com's green as the action colour. It was warm and it was competent, but
-// it was also the two most predictable moves available — brown timber for
-// "chess", borrowed green for "go" — and it said nothing about what this app
-// actually does.
+// The app is a stack of frosted panes laid on a dark walnut desk, lit by a
+// reading lamp. Depth comes from blur and from lamplight catching the edges of
+// each pane, not from surfaces stepping darker or lighter.
 //
-// What it does is schedule your memory. SM-2 serves a position back at the
-// moment just before you would have forgotten it. That belongs to instruments
-// and index cards, so: ink navy ground, brass hardware, chalk marks.
+// Three rules hold it together:
 //
-// Three rules hold it together, and breaking any one of them collapses the
-// system back into a generic dark dashboard:
+//   1. THE WARMTH LIVES BEHIND THE GLASS. The grain and the lamplight in
+//      globals.css are where the colour is. Panes are lamplight at low alpha,
+//      so the timber under them tints them. A pane that brings its own hue
+//      fights the desk instead of letting it show through.
+//   2. GREEN AND TERRACOTTA ARE SEMANTIC ONLY. Green (`accent`) means "right":
+//      correct answer, best move, line retained. Terracotta (`bad`) means
+//      "lost": blunder, forgotten, failed. Neither is ever used because a thing
+//      needed colour.
+//   3. BRASS IS THE ONLY DECORATIVE COLOUR. The primary action, focus, links,
+//      tick marks, the inlay around the board. Copper only ever appears as the
+//      far end of a brass gradient.
 //
-//   1. VERDIGRIS AND CORAL ARE SEMANTIC ONLY. Verdigris means "right" —
-//      correct answer, best move, line retained. Coral means "lost" — blunder,
-//      forgotten, failed. Neither is ever used because a thing needed a colour.
-//   2. BRASS IS THE ONLY DECORATIVE COLOUR. Hardware, tick marks, rules, the
-//      primary action. If something needs to be noticed and isn't a verdict,
-//      it is brass.
-//   3. EVERY SURFACE IS COOL AND EVERY MARK ON IT IS WARM. The ground steps
-//      night → panel → panelAlt → raise in blue; text is chalk, a warm off-
-//      white. That one temperature clash is what keeps the ink from reading as
-//      slate-grey nothing.
+// Engine output is violet (`accent2`), so a suggestion is never mistaken for a
+// verdict or for the user's own arrows.
 //
-// Every colour below is validated by apps/web/scripts/palette-check.py against
-// `panel` — CIEDE2000 separation, dichromat simulation, WCAG contrast. Change
-// one and re-run it; the numbers quoted in lib/vizTheme.ts come from there.
-//
-// Move verdicts (best / inaccuracy / blunder …) are derived from this palette
-// in lib/classification.ts rather than borrowed; see the note there.
+// Every colour is a CSS variable holding bare RGB channels (see globals.css),
+// so opacity modifiers like `bg-panel/60` keep working and the whole palette
+// can be retuned in one place.
+const rgb = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 const config: Config = {
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
@@ -40,74 +36,86 @@ const config: Config = {
         // Fallback squares only. The real board colours come from
         // lib/boardTheme.ts, which the user can switch at runtime.
         board: {
-          light: "#DCD9CC",
-          dark: "#4A737E",
+          light: "#E4D9C4",
+          dark: "#9A7550",
         },
-        // Surfaces, darkest to lightest. `night` is the page, `panel` a card,
-        // `panelAlt` a card on a card, `raise` a hover/active row. Deliberately
-        // not called `base` — that would collide with the `text-base` font-size
-        // utility and silently repaint anything using it.
-        night: "#0D1728",
-        panel: "#152438",
-        panelAlt: "#1D3050",
-        raise: "#26405F",
-        line: "#2F4A6B",
-        // Chalk, not white: a warm mark on a cool ground. Pure white here reads
-        // as a hole in the page rather than as writing on it.
-        ink: "#F2F0EA",
-        muted: "#93A6C2",
-        faint: "#6B7F9C",
+        // Tints for glass, darkest to lightest. `night` is the desk under the
+        // lamp; `panel`, `panelAlt` and `raise` are what a pane looks like
+        // once the timber has been blurred through it. Deliberately not
+        // called `base` - that would collide with the `text-base` utility.
+        night: rgb("night"),
+        panel: rgb("panel"),
+        panelAlt: rgb("panel-alt"),
+        raise: rgb("raise"),
+        line: rgb("line"),
+        // Text. Cream, then two steps of warm tan.
+        ink: rgb("ink"),
+        muted: rgb("muted"),
+        faint: rgb("faint"),
 
-        // The instrument. Hardware, rules, tick marks, the primary action.
-        brass: "#C99C56",
-        brassLit: "#E5BE77",
-        // Kept as an alias because 36 call sites already say `gold`.
-        gold: "#C99C56",
+        // The instrument colour. See rule 3 above.
+        brass: rgb("brass"),
+        brassLit: rgb("brass-lit"),
+        gold: rgb("brass"),
+        copper: rgb("copper"),
 
         // "Right." Correct answer, best move, line retained. Nothing else.
-        accent: "#3FBFA3",
+        accent: rgb("accent"),
         // "Lost." Blunder, forgotten, failed. Nothing else.
-        bad: "#F2604E",
+        bad: rgb("bad"),
+        // Engine lines and arrows.
+        accent2: rgb("accent2"),
 
-        // Engine lines and arrows, which have to stay legible drawn on top of
-        // a light chalk square. Violet, so an engine suggestion is never
-        // mistaken for a verdict.
-        accent2: "#8B7BE8",
+        good: rgb("good"),
+        warn: rgb("warn"),
 
-        good: "#9AD3BF",
-        warn: "#EDA04B",
-
-        // The two piece colours, for anything that has to stand for a side away
-        // from the board: player swatches, the eval bar, result badges. Chalk
-        // and ink, matching the board they came from.
-        ivory: "#EFEBE0",
-        ebony: "#16202F",
+        // The two piece colours, for anything that stands for a side away from
+        // the board: player swatches, the eval bar, result badges.
+        ivory: rgb("ivory"),
+        ebony: rgb("ebony"),
       },
       fontFamily: {
         // The variables are supplied by next/font in layout.tsx; the literal
         // names stay as fallbacks so a locally-installed copy still applies.
         sans: ["var(--font-sans)", "Archivo", "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ["var(--font-display)", "Instrument Serif", "ui-serif", "Georgia", "serif"],
-        // Algebraic notation is the app's third typeface, not a caption face.
+        // Display is the same grotesque at a heavier weight and tighter fit
+        // (see `.font-display` in globals.css). One clean voice over the grain.
+        display: ["var(--font-sans)", "Archivo", "ui-sans-serif", "system-ui", "sans-serif"],
+        // Algebraic notation is the app's second typeface, not a caption face.
         mono: ["var(--font-mono)", "IBM Plex Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
+      borderRadius: {
+        "4xl": "2rem",
+      },
+      backdropBlur: {
+        glass: "22px",
+      },
       boxShadow: {
-        // Ink is a dark, cool ground: a glow on it has to be cool too, or it
-        // reads as a smudge.
-        glow: "0 2px 12px rgba(63, 191, 163, 0.28)",
-        "glow-lg": "0 6px 26px rgba(63, 191, 163, 0.4)",
-        card: "0 12px 36px rgba(3, 8, 18, 0.55)",
-        // The board sits on its own plane, lifted off the page.
-        board: "0 24px 60px rgba(3, 8, 18, 0.7)",
-        // 1px inner top highlight — reads as a lit edge on a dark surface.
-        edge: "inset 0 1px 0 rgba(242, 240, 234, 0.07)",
-        // A brass hairline around the board, replacing the old timber surround.
-        frame: "inset 0 0 0 1px rgba(201, 156, 86, 0.55), 0 1px 0 rgba(3, 8, 18, 0.6)",
+        glow: "0 4px 18px -2px rgb(var(--c-accent) / 0.45)",
+        "glow-lg": "0 10px 34px -4px rgb(var(--c-accent) / 0.55)",
+        // A pane lying on the desk: a wide soft drop plus a lit top edge.
+        card: "inset 0 1px 0 rgb(var(--c-glint) / 0.14), 0 24px 60px -18px rgb(6 3 1 / 0.8)",
+        // The board sits on its own plane, lifted well clear of the desk.
+        board: "inset 0 1px 0 rgb(var(--c-glint) / 0.2), 0 40px 90px -24px rgb(6 3 1 / 0.9)",
+        // 1px inner top highlight: lamplight catching the edge of the glass.
+        edge: "inset 0 1px 0 rgb(var(--c-glint) / 0.12)",
+        // The brass inlay between the bezel and the squares, and the shadow
+        // the bezel casts onto the outer squares.
+        frame:
+          "inset 0 0 0 1px rgb(var(--c-brass) / 0.7), inset 0 0 8px rgb(6 3 1 / 0.35), 0 1px 0 rgb(6 3 1 / 0.5)",
+        // A warm glow under the primary action, as if the brass caught the lamp.
+        lamp: "0 10px 28px -8px rgb(var(--c-brass) / 0.55), inset 0 1px 0 rgb(255 245 225 / 0.6)",
       },
       keyframes: {
         rise: {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        // Opacity only, for anything that may hold a board: a transform,
+        // even a finished one, would capture the board's drag layer.
+        fade: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
         },
         pop: {
           "0%": { opacity: "0", transform: "scale(0.6)" },
@@ -117,6 +125,7 @@ const config: Config = {
       },
       animation: {
         rise: "rise 0.4s ease-out both",
+        fade: "fade 0.2s ease-out both",
         pop: "pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both",
       },
     },

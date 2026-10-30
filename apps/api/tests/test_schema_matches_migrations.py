@@ -40,6 +40,9 @@ pytestmark = pytest.mark.skipif(
 UNMAPPED_BY_DESIGN = {
     # Retained as historical records when upgrading an existing installation.
     "subscriptions", "subscription_events", "processed_webhook_events",
+    # The desktop runtime's own ledger of applied migrations
+    # (apps/desktop/backend/database.py), present on any desktop-made database.
+    "desktop_schema_migrations",
 }
 
 

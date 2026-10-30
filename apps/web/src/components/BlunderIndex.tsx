@@ -49,11 +49,11 @@ export default function BlunderIndex({ annotations, cursor, onSeek }: Props) {
               onClick={() => onSeek(a.ply + 1)}
               aria-current={here ? "true" : undefined}
               title={`${moveNo}${black ? "…" : "."} ${a.move_san ?? ""} — ${meta.label}`}
-              className={`flex items-center gap-1 rounded px-1.5 py-1 font-mono text-[11px]
+              className={`flex items-center gap-1 rounded-md px-1.5 py-1 font-mono text-[11px]
                           tabular-nums transition-colors ${
                             here
-                              ? "bg-raise text-ink ring-1 ring-brass/50"
-                              : "bg-panelAlt/60 text-muted hover:bg-raise/70 hover:text-ink"
+                              ? "bg-ivory/[0.14] text-ink shadow-edge ring-1 ring-brass/50"
+                              : "bg-ivory/[0.05] text-muted ring-1 ring-ivory/[0.06] hover:bg-ivory/10 hover:text-ink"
                           }`}
             >
               <span>

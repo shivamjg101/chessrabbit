@@ -109,7 +109,7 @@ export default function EnginePane({
               onClick={() => onPlayLine(moves.map((m) => m.san), line.cp)}
               disabled={moves.length === 0}
               title="Put this line on the board"
-              className="flex w-full items-baseline gap-2 rounded-md px-1.5 py-1 text-left
+              className="flex w-full items-baseline gap-2 rounded-lg px-1.5 py-1 text-left
                          transition-colors hover:bg-ivory/[0.07] disabled:hover:bg-transparent"
             >
               <span

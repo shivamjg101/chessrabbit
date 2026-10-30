@@ -47,7 +47,7 @@ function NeedsReview({ data }: { data: Insights }) {
     <p className="text-xs leading-relaxed text-muted">
       This one is built from engine reviews, and none of your games have been
       reviewed yet.{" "}
-      <Link href="/app" className="text-accent underline">
+      <Link href="/app" className="text-brassLit underline">
         Open a game and run a review
       </Link>{" "}
       — the numbers here fill in as you go.
@@ -339,7 +339,7 @@ function OpeningTable({ rows }: { rows: OpeningRow[] }) {
               {r.name}
             </div>
             {r.eco && (
-              <span className="rounded bg-ivory/[0.07] px-1 font-mono text-[10px] text-muted">
+              <span className="rounded-md bg-ivory/[0.07] px-1 font-mono text-[10px] text-muted">
                 {r.eco}
               </span>
             )}

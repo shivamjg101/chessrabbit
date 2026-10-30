@@ -77,8 +77,97 @@ export interface Game {
 }
 
 export interface GameDetail extends Game {
+  /**
+   * The moves, with variations and comments. A game from a set-up position
+   * starts with its `[SetUp]`/`[FEN]` tags, which `parsePgn` reads.
+   */
   movetext: string;
   annotations: Annotation[];
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  /** Already in your database, or twice in the file: not imported again. */
+  duplicates: number;
+  /** One line per game refused or cut short. */
+  errors: string[];
+  game_ids: number[];
+}
+
+export interface DuplicateGroup {
+  keep: number;
+  duplicates: number[];
+  white: string;
+  black: string;
+  result: string;
+  played_on: string | null;
+}
+
+export interface EventSummary {
+  event: string;
+  games: number;
+  first_date: string | null;
+  last_date: string | null;
+}
+
+export interface CrosstablePlayer {
+  name: string;
+  elo: number | null;
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  score: number;
+  /** Sonneborn-Berger. */
+  tiebreak: number;
+  performance: number | null;
+  /** Against each player, in standings order: "1", "0", "½", "1 ½", or "". Empty for big events. */
+  results: string[];
+}
+
+export interface Crosstable {
+  event: string;
+  games: number;
+  unfinished: number;
+  first_date: string | null;
+  last_date: string | null;
+  players: CrosstablePlayer[];
+}
+
+export interface ScoreLine {
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  score_pct: number;
+}
+
+export interface PlayerDossier {
+  name: string;
+  total: ScoreLine;
+  as_white: ScoreLine;
+  as_black: ScoreLine;
+  highest_elo: number | null;
+  latest_elo: number | null;
+  first_date: string | null;
+  last_date: string | null;
+  openings_white: { eco: string | null; opening: string | null; games: number; score_pct: number }[];
+  openings_black: { eco: string | null; opening: string | null; games: number; score_pct: number }[];
+  opponents: { name: string; games: number; score_pct: number }[];
+  recent: Game[];
+}
+
+export type NoveltyScope = "reference" | "mine";
+
+export interface Novelty {
+  /** "novelty": `ply` was new. "known": every checked move had a precedent. "no_games": empty database. */
+  status: "novelty" | "known" | "no_games";
+  ply: number | null;
+  san: string | null;
+  position_games: number;
+  known_moves: { uci: string; san: string; games: number; score_pct: number }[];
+  checked_plies: number;
 }
 
 export interface Annotation {
@@ -183,7 +272,23 @@ export interface Study {
   owner_name: string;
   /** False when you are reading somebody else's shared study. */
   can_edit: boolean;
+  /** Free-text labels a public study is found by. */
+  topics: string[];
+  likes: number;
+  /** Whether you have liked it. */
+  liked: boolean;
+  /** The study this one was cloned from, if any. */
+  cloned_from: number | null;
 }
+
+/**
+ * How a chapter is read.
+ *
+ * - normal: an analysis board.
+ * - lesson: the reader plays one side and has to find the author's moves.
+ * - conceal: every move stays hidden until the reader steps onto it.
+ */
+export type ChapterMode = "normal" | "lesson" | "conceal";
 
 export interface StudyChapter {
   id: number;
@@ -193,9 +298,109 @@ export interface StudyChapter {
   pgn: string;
   starting_fen: string;
   orientation: "white" | "black";
+  mode: ChapterMode;
+  /** The author asks readers to work it out without the engine. */
+  hide_engine: boolean;
+  /** PGN tag pairs: White, Black, Event, Date, Result, Annotator ... */
+  tags: Record<string, string>;
   position: number;
   /** Quoted back on every save; the server rejects a stale one with 409. */
   version: number;
+}
+
+/** What a new chapter is made from. Everything but the name is optional. */
+export interface ChapterDraft {
+  name: string;
+  description?: string;
+  pgn?: string;
+  starting_fen?: string;
+  orientation?: "white" | "black";
+  from_game_id?: number;
+  mode?: ChapterMode;
+  hide_engine?: boolean;
+  tags?: Record<string, string>;
+}
+
+export interface StudyPage {
+  studies: Study[];
+  page: number;
+  has_more: boolean;
+}
+
+export type PublicStudySort = "popular" | "newest" | "updated";
+
+// ---- Your game database ----
+
+export type GameSort =
+  | "added" | "date" | "white" | "black" | "white_elo" | "black_elo"
+  | "result" | "eco" | "event" | "moves";
+
+/** Every filter and order `GET /games` accepts. All optional. */
+export interface GameListQuery {
+  q?: string;
+  white?: string;
+  black?: string;
+  eco?: string;
+  opening?: string;
+  event?: string;
+  result?: string;
+  min_elo?: number;
+  date_from?: string;
+  date_to?: string;
+  collection?: number;
+  sort?: GameSort;
+  order?: "asc" | "desc";
+  page?: number;
+  limit?: number;
+}
+
+export interface GameHeaders {
+  white?: string;
+  black?: string;
+  white_elo?: number | null;
+  black_elo?: number | null;
+  event?: string;
+  site?: string;
+  played_on?: string | null;
+  result?: string;
+  eco?: string;
+  opening?: string;
+}
+
+export interface Collection {
+  id: number;
+  name: string;
+  game_count: number;
+}
+
+// ---- Endgame tablebase ----
+
+/** win | loss | draw | cursed-win | blessed-loss | maybe-win | maybe-loss | unknown */
+export type TablebaseCategory = string;
+
+export interface TablebaseMove {
+  uci: string;
+  san: string;
+  /** For the side to move AFTER this move. */
+  category: TablebaseCategory;
+  dtz: number | null;
+  dtm: number | null;
+  zeroing: boolean;
+  checkmate: boolean;
+  stalemate: boolean;
+}
+
+export interface TablebaseResult {
+  fen: string;
+  /** rules | syzygy (files on this machine) | lichess (online) */
+  source: string;
+  category: TablebaseCategory;
+  dtz: number | null;
+  dtm: number | null;
+  checkmate: boolean;
+  stalemate: boolean;
+  insufficient_material: boolean;
+  moves: TablebaseMove[];
 }
 
 export interface StudyMember {
@@ -528,6 +733,58 @@ async function request<T>(
   return res.json();
 }
 
+/**
+ * A text response, with the same auth and refresh as `request`.
+ *
+ * Exports go through here rather than through a plain link: a link is a
+ * navigation, and a navigation carries no Authorization header - so a link to
+ * the PGN of a private study reached the server as a stranger and came back
+ * 404.
+ */
+async function requestText(path: string, options: RequestInit = {}, retry = true): Promise<string> {
+  if (!getAccessToken()) await bootstrapLocal();
+  const token = getAccessToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((options.headers as Record<string, string>) ?? {}),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  if (res.status === 401 && retry && (await refreshAccessToken())) {
+    return requestText(path, options, false);
+  }
+  if (!res.ok) {
+    let code = "error";
+    let message = res.statusText;
+    try {
+      const body = await res.json();
+      code = body.detail?.code ?? code;
+      message = body.detail?.message ?? message;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(res.status, code, message);
+  }
+  return res.text();
+}
+
+/** Hand the browser a file to save, from text already in memory. */
+export function saveTextFile(text: string, filename: string, type = "application/x-chess-pgn") {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoked on the next tick: some browsers start the download asynchronously.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function slugName(name: string): string {
+  return name.replace(/[^\w-]+/g, "_").slice(0, 40) || "export";
+}
+
 export const api = {
   register: (email: string, password: string, display_name = "") =>
     request<TokenPair>("/auth/register", {
@@ -563,12 +820,77 @@ export const api = {
 
   listGames: (page = 1) => request<Game[]>(`/games?page=${page}`),
 
+  /** The game list as a database program shows it: filtered, sorted, paged. */
+  queryGames: (query: GameListQuery = {}) => {
+    const q = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      const v = typeof value === "string" ? value.trim() : value;
+      if (v !== "" && v != null) q.set(key, String(v));
+    }
+    return request<Game[]>(`/games?${q.toString()}`);
+  },
+
+  updateGame: (id: number, headers: GameHeaders) =>
+    request<Game>(`/games/${id}`, { method: "PATCH", body: JSON.stringify(headers) }),
+
+  deleteGames: (ids: number[]) =>
+    request<void>("/games/delete", { method: "POST", body: JSON.stringify({ ids }) }),
+
+  /** Several games as one multi-game PGN, in the order given. */
+  exportGames: (ids: number[]) =>
+    requestText("/games/export", { method: "POST", body: JSON.stringify({ ids }) }),
+
+  gamePgn: (id: number) => requestText(`/games/${id}/pgn`),
+
+  listCollections: () => request<Collection[]>("/collections"),
+
+  createCollection: (name: string) =>
+    request<Collection>("/collections", { method: "POST", body: JSON.stringify({ name }) }),
+
+  deleteCollection: (id: number) => request<void>(`/collections/${id}`, { method: "DELETE" }),
+
+  addToCollection: (id: number, gameIds: number[]) =>
+    request<Collection>(`/collections/${id}/games`, {
+      method: "POST",
+      body: JSON.stringify({ ids: gameIds }),
+    }),
+
+  removeFromCollection: (id: number, gameId: number) =>
+    request<void>(`/collections/${id}/games/${gameId}`, { method: "DELETE" }),
+
+  tablebase: (fen: string, signal?: AbortSignal) =>
+    request<TablebaseResult>(`/tablebase?fen=${encodeURIComponent(fen)}`, { signal }),
+
   getGame: (id: number) => request<GameDetail>(`/games/${id}`),
 
   importPgn: (pgn: string) =>
-    request<{ imported: number; skipped: number; game_ids: number[] }>("/games", {
+    request<ImportResult>("/games", {
       method: "POST",
       body: JSON.stringify({ pgn }),
+    }),
+
+  /** Games in your database more than once. Nothing is deleted by asking. */
+  findDuplicates: () => request<{ groups: DuplicateGroup[]; total: number }>("/games/duplicates"),
+
+  // ---- reports: crosstables, player dossiers, novelties ----
+
+  listEvents: (q = "") =>
+    request<EventSummary[]>(`/reports/events${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ""}`),
+
+  crosstable: (event: string) =>
+    request<Crosstable>(`/reports/crosstable?event=${encodeURIComponent(event)}`),
+
+  findPlayers: (q: string) =>
+    request<{ name: string; games: number }[]>(`/reports/players?q=${encodeURIComponent(q)}`),
+
+  playerDossier: (name: string) =>
+    request<PlayerDossier>(`/reports/player?name=${encodeURIComponent(name)}`),
+
+  /** The first move of a line that the chosen database had never seen in its position. */
+  findNovelty: (startFen: string, moves: string[], scope: NoveltyScope, gameId?: number | null) =>
+    request<Novelty>("/reports/novelty", {
+      method: "POST",
+      body: JSON.stringify({ start_fen: startFen, moves, scope, game_id: gameId ?? null }),
     }),
 
   deleteGame: (id: number) => request<void>(`/games/${id}`, { method: "DELETE" }),
@@ -603,11 +925,14 @@ export const api = {
 
   // ---- reference database search ----
 
-  /** "Which master games reached this exact position?" (BLUEPRINT 10.3) */
-  searchPosition: (fen: string, page = 1) =>
+  /**
+   * "Which games reached this exact position?" (BLUEPRINT 10.3) - master games
+   * by default, or with scope "mine" your own.
+   */
+  searchPosition: (fen: string, page = 1, scope: NoveltyScope = "reference") =>
     request<SearchResults>(`/search/position?page=${page}`, {
       method: "POST",
-      body: JSON.stringify({ fen }),
+      body: JSON.stringify({ fen, scope }),
     }),
 
   searchGames: (query: GameSearchQuery, page = 1) => {
@@ -772,6 +1097,16 @@ export const api = {
 
   listStudies: () => request<Study[]>("/studies"),
 
+  /** Studies their owners published, for anybody to browse. */
+  publicStudies: (opts: { q?: string; topic?: string; sort?: PublicStudySort; page?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.q?.trim()) q.set("q", opts.q.trim());
+    if (opts.topic) q.set("topic", opts.topic);
+    q.set("sort", opts.sort ?? "popular");
+    q.set("page", String(opts.page ?? 1));
+    return request<StudyPage>(`/studies/public?${q.toString()}`);
+  },
+
   getStudy: (ref: string) => request<StudyDetail>(`/studies/${encodeURIComponent(ref)}`),
 
   createStudy: (body: {
@@ -780,11 +1115,29 @@ export const api = {
     visibility?: StudyVisibility;
     from_game_id?: number;
     pgn?: string;
+    topics?: string[];
   }) => request<StudyDetail>("/studies", { method: "POST", body: JSON.stringify(body) }),
+
+  /** Copy a study you can read into a private one of your own. */
+  cloneStudy: (ref: string, name?: string) =>
+    request<StudyDetail>(`/studies/${encodeURIComponent(ref)}/clone`, {
+      method: "POST",
+      body: JSON.stringify(name ? { name } : {}),
+    }),
+
+  likeStudy: (ref: string, like: boolean) =>
+    request<{ likes: number; liked: boolean }>(`/studies/${encodeURIComponent(ref)}/like`, {
+      method: like ? "POST" : "DELETE",
+    }),
 
   updateStudy: (
     ref: string,
-    body: { name?: string; description?: string; visibility?: StudyVisibility },
+    body: {
+      name?: string;
+      description?: string;
+      visibility?: StudyVisibility;
+      topics?: string[];
+    },
   ) =>
     request<Study>(`/studies/${encodeURIComponent(ref)}`, {
       method: "PATCH",
@@ -798,20 +1151,17 @@ export const api = {
   reshareStudy: (ref: string) =>
     request<Study>(`/studies/${encodeURIComponent(ref)}/reshare`, { method: "POST" }),
 
-  createChapter: (
-    ref: string,
-    body: {
-      name: string;
-      description?: string;
-      pgn?: string;
-      starting_fen?: string;
-      orientation?: "white" | "black";
-      from_game_id?: number;
-    },
-  ) =>
+  createChapter: (ref: string, body: ChapterDraft) =>
     request<StudyChapter>(`/studies/${encodeURIComponent(ref)}/chapters`, {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+
+  /** Several chapters at once - a multi-game PGN. All are added, or none. */
+  importChapters: (ref: string, chapters: ChapterDraft[]) =>
+    request<StudyChapter[]>(`/studies/${encodeURIComponent(ref)}/chapters/import`, {
+      method: "POST",
+      body: JSON.stringify({ chapters }),
     }),
 
   /**
@@ -830,6 +1180,9 @@ export const api = {
       description?: string;
       pgn?: string;
       orientation?: "white" | "black";
+      mode?: ChapterMode;
+      hide_engine?: boolean;
+      tags?: Record<string, string>;
       version?: number;
     },
   ) =>
@@ -864,6 +1217,18 @@ export const api = {
     `${API_URL}/studies/${encodeURIComponent(ref)}/pgn${
       chapterId != null ? `?chapter=${chapterId}` : ""
     }`,
+
+  /** Download a study (or one chapter of it) as PGN, signed in. */
+  downloadStudyPgn: async (ref: string, name: string, chapterId?: number) => {
+    const text = await requestText(
+      `/studies/${encodeURIComponent(ref)}/pgn${chapterId != null ? `?chapter=${chapterId}` : ""}`
+    );
+    saveTextFile(text, `${slugName(name)}.pgn`);
+  },
+
+  downloadGames: async (ids: number[], name = "games") => {
+    saveTextFile(await api.exportGames(ids), `${slugName(name)}.pgn`);
+  },
 };
 
 export { ApiError, API_URL };

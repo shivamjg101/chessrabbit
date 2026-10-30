@@ -102,9 +102,34 @@ export default function PlayPage() {
   const [stageRef, boardSize] = useSquareSize(FRAME, PLATE_STACK);
   const moveListRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Where the game starts. `?fen=` arrives from the analysis board's "Play
+   * from here", which is how a position you are studying gets played out
+   * against an opponent rather than only analysed. Read once from the URL
+   * rather than through useSearchParams, which would need a Suspense boundary
+   * around the whole page in an exported build.
+   */
+  const [startFen, setStartFen] = useState<string | undefined>();
+
   useEffect(() => {
     api.me().catch(() => router.push("/login"));
   }, [router]);
+
+  useEffect(() => {
+    const fen = new URLSearchParams(window.location.search).get("fen");
+    if (!fen) return;
+    try {
+      game.current = new Chess(fen);
+    } catch {
+      setError("That position cannot be played from — starting from the beginning instead.");
+      return;
+    }
+    setStartFen(fen);
+    // You take the side whose move it is: that is the side you were studying.
+    setColor(game.current.turn() === "w" ? "white" : "black");
+    setFen(game.current.fen());
+    setMoves([]);
+  }, []);
 
   // A hint belongs to one position - drop it as soon as the board changes.
   useEffect(() => {
@@ -265,7 +290,7 @@ export default function PlayPage() {
     const c: Color = color === "random" ? (Math.random() < 0.5 ? "white" : "black") : color;
     colorRef.current = c;
     levelRef.current = level;
-    game.current = new Chess();
+    game.current = new Chess(startFen);
     setUserColor(c);
     setGameLevel(level);
     setFlipped(false);
@@ -274,11 +299,13 @@ export default function PlayPage() {
     setHintsUsed(0);
     setStatus("playing");
     sync();
-    if (c === "black") void requestEngineMove(); // engine (White) opens
+    // The engine opens whenever it is its move - from the initial position
+    // that means you took Black, from a set-up one it depends on the FEN.
+    if (game.current.turn() !== (c === "white" ? "w" : "b")) void requestEngineMove();
   }
 
   function newGame() {
-    game.current = new Chess();
+    game.current = new Chess(startFen);
     sync();
     setResult(null);
     setError(null);
@@ -313,7 +340,7 @@ export default function PlayPage() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       {/* ---------- Top bar ---------- */}
-      <header className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-ivory/[0.07] bg-panel/70 px-3 backdrop-blur-xl">
+      <header className="glass-bar z-40 flex h-14 shrink-0 items-center gap-3 px-3">
         <Link href="/app" className="btn">
           ← Board
         </Link>
@@ -337,10 +364,11 @@ export default function PlayPage() {
 
       {error && (
         <button
-          className="shrink-0 border-b border-bad/30 bg-bad/10 px-4 py-2 text-left text-sm"
+          className="glass mx-3 mt-2 flex shrink-0 items-center gap-2 rounded-xl border-bad/30 bg-bad/10 px-4 py-2 text-left text-sm"
           onClick={() => setError(null)}
         >
-          {error} <span className="text-muted">(dismiss)</span>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-bad" />
+          {error} <span className="ml-auto text-xs text-muted">dismiss</span>
         </button>
       )}
 
@@ -351,7 +379,7 @@ export default function PlayPage() {
             board sits in never feeds the board's own size back into itself. */}
         <div
           className="h-[calc(100vw_+_76px)] w-full px-3 lg:h-full lg:min-h-0
-                     lg:w-auto lg:min-w-0 lg:flex-1 lg:px-0"
+                     lg:w-auto lg:min-w-0 lg:flex-1 lg:px-3"
         >
           <div
             ref={stageRef}
@@ -407,8 +435,8 @@ export default function PlayPage() {
 
         {/* ---------- Game panel ---------- */}
         <aside
-          className="flex w-full shrink-0 flex-col border-ivory/[0.07] bg-panel/60 backdrop-blur-xl
-                     border-t lg:h-full lg:w-[352px] lg:border-l lg:border-t-0 xl:w-[400px]"
+          className="glass mt-3 flex w-full shrink-0 flex-col rounded-t-3xl lg:my-2 lg:mr-2 lg:mt-2
+                     lg:h-[calc(100%-1rem)] lg:w-[352px] lg:rounded-2xl xl:w-[400px]"
         >
           <div className="shrink-0 border-b border-ivory/[0.06] px-3 py-2.5">
             <div className="flex items-center gap-2">
@@ -444,7 +472,7 @@ export default function PlayPage() {
                         key={c.id}
                         onClick={() => setColor(c.id)}
                         aria-pressed={color === c.id}
-                        className={`rounded-xl border px-2 py-3 transition-colors ${
+                        className={`rounded-2xl border px-2 py-3 transition-colors ${
                           color === c.id
                             ? "border-brass/50 bg-brass/15 text-brassLit"
                             : "border-ivory/[0.07] bg-ivory/[0.04] text-muted hover:bg-ivory/[0.08] hover:text-ink"
@@ -487,13 +515,13 @@ export default function PlayPage() {
                 <div className="card-tight p-3">
                   <p className="text-xs leading-relaxed text-muted">
                     <span className="text-gold">Stuck mid-game?</span> The Hint
-                    button — or <kbd className="rounded bg-ivory/10 px-1">H</kbd> —
+                    button — or <kbd className="rounded-md bg-ivory/10 px-1">H</kbd> —
                     names the piece to move. Press it again to see the whole move.
                     Hints always come from a full-strength engine, whatever level
                     you are playing.
                   </p>
                   <p className="mt-2 text-xs text-muted">
-                    <kbd className="rounded bg-ivory/10 px-1">F</kbd> flips the board.
+                    <kbd className="rounded-md bg-ivory/10 px-1">F</kbd> flips the board.
                   </p>
                 </div>
               </>
@@ -527,7 +555,7 @@ export default function PlayPage() {
                 </div>
 
                 {hint && (
-                  <div className="animate-rise rounded-xl border border-gold/30 bg-gold/10 px-3 py-2.5">
+                  <div className="animate-rise rounded-2xl border border-gold/30 bg-gold/10 px-3 py-2.5">
                     <p className="text-sm">
                       {hintStage === 1 ? (
                         <>
@@ -564,7 +592,7 @@ export default function PlayPage() {
                   </div>
                   <div
                     ref={moveListRef}
-                    className="max-h-[40vh] overflow-y-auto rounded-xl bg-panelAlt/70 p-2 lg:max-h-none"
+                    className="max-h-[40vh] overflow-y-auto rounded-2xl bg-ivory/[0.04] p-2 ring-1 ring-ivory/[0.07] lg:max-h-none"
                   >
                     {moves.length === 0 ? (
                       <p className="px-1 py-2 text-xs text-muted">
@@ -575,8 +603,8 @@ export default function PlayPage() {
                         {Array.from({ length: Math.ceil(moves.length / 2) }).map((_, i) => (
                           <div key={i} className="contents">
                             <span className="text-right text-muted">{i + 1}.</span>
-                            <span className="rounded px-1">{moves[i * 2]}</span>
-                            <span className="rounded px-1">{moves[i * 2 + 1] ?? ""}</span>
+                            <span className="rounded-md px-1">{moves[i * 2]}</span>
+                            <span className="rounded-md px-1">{moves[i * 2 + 1] ?? ""}</span>
                           </div>
                         ))}
                       </div>
@@ -589,7 +617,7 @@ export default function PlayPage() {
 
           {/* Actions: pinned to the panel on a desktop, stuck to the bottom of
               the viewport while scrolling on a phone. */}
-          <div className="sticky bottom-0 shrink-0 space-y-2 border-t border-ivory/[0.06] bg-panel/90 p-2.5 backdrop-blur-xl lg:static lg:bg-transparent lg:backdrop-blur-none">
+          <div className="glass-bar sticky bottom-0 shrink-0 space-y-2 p-2.5 lg:static lg:rounded-b-2xl lg:bg-transparent lg:shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] lg:backdrop-blur-none">
             {status === "setup" ? (
               <button className="btn-primary w-full" onClick={startGame}>
                 Start game
@@ -619,7 +647,7 @@ export default function PlayPage() {
                     onClick={flip}
                     title="Flip board (f)"
                     aria-label="Flip board"
-                    className="rounded-lg border border-ivory/10 bg-ivory/[0.05] px-3 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/10 hover:text-ink"
+                    className="rounded-xl border border-ivory/10 bg-ivory/[0.05] px-3 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/10 hover:text-ink"
                   >
                     ⟳
                   </button>

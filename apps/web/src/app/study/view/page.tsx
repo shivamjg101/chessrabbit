@@ -6,7 +6,8 @@
  * Opened by id (`?id=12`) for a study you have access to, or by share slug
  * (`?s=…`) for one somebody sent you. Both go through the same request and the
  * same screen — a shared study is not a second, lesser view of a study, it is
- * the same one with the writing turned off.
+ * the same one with the writing turned off. `&chapter=…` opens a given
+ * chapter, which is what "copy link to this chapter" hands out.
  *
  * The route is a query parameter rather than a path segment because the web
  * tier ships as a static export: a `[id]` route would need every id known at
@@ -14,21 +15,45 @@
  */
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AnalysisBoard from "@/components/AnalysisBoard";
+import ChapterSettings from "@/components/ChapterSettings";
+import LessonBoard from "@/components/LessonBoard";
+import NewChapterDialog from "@/components/NewChapterDialog";
 import StudyChapters from "@/components/StudyChapters";
+import StudyOverview from "@/components/StudyOverview";
+import StudySettings from "@/components/StudySettings";
 import StudyShare from "@/components/StudyShare";
 import { api, ApiError, Study, StudyChapter, StudyDetail, StudyMember } from "@/lib/api";
+import { GamePlayers } from "@/components/PlayerPlate";
 
 /** What the board's header says about the last save. */
 type SaveState = { text: string; bad?: boolean } | null;
 
+type Dialog = null | "new" | "study" | { chapter: number };
+
+/** The plates name whoever the chapter's tags say played it. */
+function playersOf(c: StudyChapter): GamePlayers | undefined {
+  const t = c.tags ?? {};
+  if (!t.White && !t.Black) return undefined;
+  const elo = (v?: string) => (v && Number(v) > 0 ? Number(v) : null);
+  return {
+    white: t.White ?? "White",
+    black: t.Black ?? "Black",
+    whiteElo: elo(t.WhiteElo),
+    blackElo: elo(t.BlackElo),
+    result: t.Result,
+  };
+}
+
 function StudyWorkspace() {
+  const router = useRouter();
   const params = useSearchParams();
   // Either form resolves at the same endpoint; the slug is simply another name
   // for the study, and the server decides what it grants.
   const ref = params.get("id") ?? params.get("s") ?? "";
+  const chapterParam = Number(params.get("chapter"));
 
   const [study, setStudy] = useState<StudyDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +62,17 @@ function StudyWorkspace() {
   const [busy, setBusy] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
+  const [overview, setOverview] = useState(false);
+  const [dialog, setDialog] = useState<Dialog>(null);
+  /** An author looking at their lesson the way a reader will. */
+  const [preview, setPreview] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  /** Who is reading: only the owner may delete the study. Null for a stranger. */
+  const [meId, setMeId] = useState<number | null>(null);
+
+  useEffect(() => {
+    api.me().then((m) => setMeId(m.id)).catch(() => setMeId(null));
+  }, []);
 
   /**
    * The chapter text the board was opened with.
@@ -66,7 +102,30 @@ function StudyWorkspace() {
   activeIdRef.current = activeId;
 
   const active = study?.chapters.find((c) => c.id === activeId) ?? null;
+  const activeIndex = study && active ? study.chapters.indexOf(active) : -1;
   const canEdit = study?.can_edit ?? false;
+
+  useEffect(() => {
+    if (!note) return;
+    const t = setTimeout(() => setNote(null), 2400);
+    return () => clearTimeout(t);
+  }, [note]);
+
+  const openChapter = useCallback((chapter: StudyChapter) => {
+    setActiveId(chapter.id);
+    setOpenPgn(chapter.pgn);
+    setOpenFen(chapter.starting_fen);
+    version.current = chapter.version;
+    setSaving(null);
+    setOverview(false);
+    setPreview(false);
+    // Kept in the address bar, so the link you copy is to the chapter you are
+    // on. replaceState rather than a navigation: switching chapters is not a
+    // page anybody wants the back button to step through.
+    const url = new URL(window.location.href);
+    url.searchParams.set("chapter", String(chapter.id));
+    window.history.replaceState(null, "", url.toString());
+  }, []);
 
   useEffect(() => {
     if (!ref) {
@@ -77,12 +136,12 @@ function StudyWorkspace() {
       .getStudy(ref)
       .then((s) => {
         setStudy(s);
-        const first = s.chapters[0];
-        if (first) {
-          setActiveId(first.id);
-          setOpenPgn(first.pgn);
-          setOpenFen(first.starting_fen);
-          version.current = first.version;
+        const wanted = s.chapters.find((c) => c.id === chapterParam) ?? s.chapters[0];
+        if (wanted) {
+          setActiveId(wanted.id);
+          setOpenPgn(wanted.pgn);
+          setOpenFen(wanted.starting_fen);
+          version.current = wanted.version;
         }
       })
       .catch((err) =>
@@ -92,15 +151,9 @@ function StudyWorkspace() {
             : "Could not open that study."
         )
       );
+    // The chapter is read once, on arrival; afterwards the page writes it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref]);
-
-  const openChapter = useCallback((chapter: StudyChapter) => {
-    setActiveId(chapter.id);
-    setOpenPgn(chapter.pgn);
-    setOpenFen(chapter.starting_fen);
-    version.current = chapter.version;
-    setSaving(null);
-  }, []);
 
   /** Fold a changed chapter back into the study without touching the board. */
   const merge = useCallback((chapter: StudyChapter) => {
@@ -147,23 +200,12 @@ function StudyWorkspace() {
     [ref, activeId, merge]
   );
 
-  async function addChapter() {
-    if (!study) return;
-    setBusy(true);
-    try {
-      const chapter = await api.createChapter(ref, {
-        name: `Chapter ${study.chapters.length + 1}`,
-      });
-      setStudy({ ...study, chapters: [...study.chapters, chapter] });
-      openChapter(chapter);
-    } catch (err) {
-      setSaving({
-        text: err instanceof ApiError ? err.message : "Could not add a chapter",
-        bad: true,
-      });
-    } finally {
-      setBusy(false);
-    }
+  function chaptersAdded(made: StudyChapter[]) {
+    if (!study || made.length === 0) return;
+    setStudy({ ...study, chapters: [...study.chapters, ...made] });
+    setDialog(null);
+    openChapter(made[0]);
+    if (made.length > 1) setNote(`Added ${made.length} chapters`);
   }
 
   async function renameChapter(id: number, name: string) {
@@ -243,6 +285,57 @@ function StudyWorkspace() {
     }
   }
 
+  /** Settings changed what the chapter is or how it reads; reopen it if it is the one on the board. */
+  function chapterSaved(saved: StudyChapter) {
+    merge(saved);
+    setDialog(null);
+    if (saved.id === activeId) {
+      version.current = saved.version;
+      setOpenFen(saved.starting_fen);
+    }
+  }
+
+  async function toggleLike() {
+    if (!study) return;
+    const before = { likes: study.likes, liked: study.liked };
+    const liked = !study.liked;
+    setStudy({ ...study, liked, likes: study.likes + (liked ? 1 : -1) });
+    try {
+      const res = await api.likeStudy(ref, liked);
+      setStudy((s) => (s ? { ...s, ...res } : s));
+    } catch {
+      setStudy((s) => (s ? { ...s, ...before } : s));
+      setNote("Could not record that — sign in to like studies");
+    }
+  }
+
+  async function cloneStudy() {
+    if (!study) return;
+    if (!confirm(`Make your own private copy of "${study.name}"? You can change the copy freely.`)) return;
+    setBusy(true);
+    try {
+      const copy = await api.cloneStudy(ref);
+      router.push(`/study/view/?id=${copy.id}`);
+      // A new study id in the same route: the page does not remount, so it
+      // has to be told to load the copy.
+      setStudy(null);
+    } catch (err) {
+      setNote(err instanceof ApiError ? err.message : "Could not clone this study");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyChapterLink() {
+    const url = new URL(window.location.href);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setNote("Link to this chapter copied");
+    } catch {
+      setNote("Copying was blocked — copy the address bar instead");
+    }
+  }
+
   if (error) {
     return (
       <div className="mx-auto max-w-lg p-8 text-center">
@@ -259,11 +352,16 @@ function StudyWorkspace() {
     return <p className="p-8 text-sm text-muted">Loading…</p>;
   }
 
+  const isOwner = meId != null && meId === study.owner_id;
+  const asLesson = active.mode === "lesson" && (!canEdit || preview);
+  const next = study.chapters[activeIndex + 1];
+  const settingsFor =
+    dialog && typeof dialog === "object" ? study.chapters.find((c) => c.id === dialog.chapter) : null;
+
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       <header
-        className="z-40 flex h-14 shrink-0 items-center gap-2 border-b border-[#2F4A6B]
-                   bg-panel/80 px-3 shadow-[0_2px_10px_rgba(12,8,5,0.45)] backdrop-blur-xl"
+        className="glass-bar z-40 flex h-14 shrink-0 items-center gap-1.5 px-3"
       >
         <button
           className="btn px-2"
@@ -278,22 +376,58 @@ function StudyWorkspace() {
           ← Studies
         </Link>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 px-1">
           <p className="truncate text-sm font-medium" title={study.name}>
             {study.name}
           </p>
           <p className="truncate text-[11px] text-muted">
             {canEdit ? `${study.chapters.length} chapters` : `Read-only · by ${study.owner_name}`}
+            {study.topics.length > 0 && ` · ${study.topics.join(", ")}`}
           </p>
         </div>
 
-        <a
-          href={api.studyPgnUrl(ref)}
+        <button
+          onClick={toggleLike}
+          aria-pressed={study.liked}
+          title={study.liked ? "Unlike" : "Like this study"}
+          className={`btn shrink-0 px-2 text-xs ${study.liked ? "text-bad" : ""}`}
+        >
+          {study.liked ? "♥" : "♡"} {study.likes}
+        </button>
+        <button
+          onClick={() => setOverview((o) => !o)}
+          aria-pressed={overview}
+          title="All chapters as boards"
+          className="btn hidden shrink-0 px-2 text-xs sm:block"
+        >
+          ▦ Overview
+        </button>
+        <button
+          onClick={() =>
+            api.downloadStudyPgn(ref, study.name).catch(() => setNote("Could not download the PGN"))
+          }
           className="btn shrink-0 px-2 text-xs"
           title="Download every chapter as one PGN file"
         >
           PGN
-        </a>
+        </button>
+        <button
+          onClick={cloneStudy}
+          disabled={busy}
+          title="Make your own copy of this study"
+          className="btn hidden shrink-0 px-2 text-xs sm:block"
+        >
+          Clone
+        </button>
+        {canEdit && (
+          <button
+            onClick={() => setDialog("study")}
+            className="btn shrink-0 px-2 text-xs"
+            title="Name, description and topics"
+          >
+            ⚙
+          </button>
+        )}
         {canEdit && (
           <button
             onClick={() => setShowShare((s) => !s)}
@@ -313,47 +447,85 @@ function StudyWorkspace() {
         </button>
       </header>
 
+      {note && (
+        <div className="glass mx-3 mt-2 shrink-0 rounded-xl px-4 py-1.5 text-xs">{note}</div>
+      )}
+
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {railOpen && (
           <aside
-            className="shrink-0 border-b border-ivory/[0.07] bg-panel/40 lg:h-full lg:w-56
-                       lg:border-b-0 lg:border-r"
+            className="glass m-2 flex shrink-0 flex-col overflow-hidden rounded-2xl lg:mr-0 lg:h-[calc(100%-1rem)] lg:w-60"
           >
-            <StudyChapters
-              chapters={study.chapters}
-              activeId={activeId}
-              canEdit={canEdit}
-              busy={busy}
-              onSelect={(id) => {
-                const chapter = study.chapters.find((c) => c.id === id);
-                if (chapter) openChapter(chapter);
-              }}
-              onAdd={addChapter}
-              onRename={renameChapter}
-              onDelete={deleteChapter}
-              onMove={moveChapter}
-            />
+            <div className="min-h-0 flex-1">
+              <StudyChapters
+                chapters={study.chapters}
+                activeId={overview ? null : activeId}
+                canEdit={canEdit}
+                busy={busy}
+                onSelect={(id) => {
+                  const chapter = study.chapters.find((c) => c.id === id);
+                  if (chapter) openChapter(chapter);
+                }}
+                onAdd={() => setDialog("new")}
+                onRename={renameChapter}
+                onDelete={deleteChapter}
+                onMove={moveChapter}
+                onSettings={(id) => setDialog({ chapter: id })}
+              />
+            </div>
+            <div className="shrink-0 space-y-1.5 border-t border-ivory/[0.06] p-2 text-[11px]">
+              {active.mode === "lesson" && canEdit && (
+                <button
+                  onClick={() => setPreview((p) => !p)}
+                  className="btn w-full py-1 text-xs"
+                  aria-pressed={preview}
+                >
+                  {preview ? "✎ Back to editing" : "🎓 Preview the lesson"}
+                </button>
+              )}
+              <button onClick={copyChapterLink} className="w-full rounded-md px-2 py-1 text-left text-muted hover:bg-ivory/[0.06] hover:text-ink">
+                🔗 Copy link to this chapter
+              </button>
+            </div>
           </aside>
         )}
 
         <main className="min-h-0 flex-1">
-          <AnalysisBoard
-            initialPgn={openPgn}
-            gameLabel={active.name}
-            study={{
-              startFen: openFen,
-              orientation: active.orientation,
-              readOnly: !canEdit,
-              onPersist: persist,
-              status: saving?.text ?? null,
-            }}
-          />
+          {overview ? (
+            <StudyOverview study={study} onOpen={openChapter} />
+          ) : asLesson ? (
+            <LessonBoard
+              key={active.id}
+              name={active.name}
+              description={active.description}
+              pgn={active.pgn}
+              startFen={active.starting_fen}
+              orientation={active.orientation}
+              onNext={next ? () => openChapter(next) : undefined}
+              onAnalyse={canEdit ? () => setPreview(false) : undefined}
+            />
+          ) : (
+            <AnalysisBoard
+              initialPgn={openPgn}
+              gameLabel={active.name}
+              players={playersOf(active)}
+              study={{
+                startFen: openFen,
+                orientation: active.orientation,
+                readOnly: !canEdit,
+                onPersist: persist,
+                status: saving?.text ?? null,
+                mode: active.mode,
+                hideEngine: active.hide_engine,
+              }}
+            />
+          )}
         </main>
 
         {showShare && canEdit && (
           <aside
-            className="shrink-0 border-t border-ivory/[0.07] bg-panel/60 p-3 lg:h-full lg:w-72
-                       lg:overflow-y-auto lg:border-l lg:border-t-0"
+            className="glass m-2 shrink-0 rounded-2xl p-3 lg:ml-0 lg:h-[calc(100%-1rem)] lg:w-72
+                       lg:overflow-y-auto"
           >
             <StudyShare
               study={study}
@@ -364,6 +536,37 @@ function StudyWorkspace() {
           </aside>
         )}
       </div>
+
+      {dialog === "new" && (
+        <NewChapterDialog
+          studyRef={ref}
+          chapterCount={study.chapters.length}
+          onCreated={chaptersAdded}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "study" && (
+        <StudySettings
+          study={study}
+          isOwner={isOwner}
+          onSaved={(s) => {
+            setStudy({ ...study, ...s });
+            setDialog(null);
+          }}
+          onDeleted={() => router.push("/study")}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {settingsFor && (
+        <ChapterSettings
+          studyRef={ref}
+          studyName={study.name}
+          chapter={settingsFor}
+          canEdit={canEdit}
+          onSaved={chapterSaved}
+          onClose={() => setDialog(null)}
+        />
+      )}
     </div>
   );
 }

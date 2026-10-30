@@ -3,6 +3,7 @@
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import Wordmark from "@/components/Wordmark";
 import {
   adminApi, adminTokenExpiresAt, clearAdminToken, getAdminToken,
 } from "@/lib/adminApi";
@@ -86,10 +87,11 @@ export default function AdminShell({
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-ivory/[0.07] bg-panel/80 backdrop-blur-sm">
+      <header className="glass-bar sticky top-0 z-20">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-          <span className="text-sm font-bold">
-            ChessRabbit <span className="text-accent">admin</span>
+          <span className="flex items-center gap-2">
+            <Wordmark href="/admin" />
+            <span className="chip border border-brass/40 bg-brass/15 text-brassLit">admin</span>
           </span>
 
           <nav className="seg">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Wordmark from "@/components/Wordmark";
 import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { useBoardTheme } from "@/lib/boardTheme";
@@ -21,7 +22,7 @@ const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
  * engine arrows on the analysis board, which are a suggestion, this arrow is
  * the answer.
  */
-const ANSWER_ARROW = "#3FBFA3";
+const ANSWER_ARROW = "#58B373";
 
 type Feedback = (TrainingResult & { answered: string }) | null;
 
@@ -225,14 +226,12 @@ export default function TrainPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Chrome: one line, one brass hairline, and the only number that
-          matters pushed to the far end. */}
-      <header className="sticky top-0 z-30 border-b border-brass/25 bg-night/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-5 px-5 py-3">
-          <Link href="/app" className="font-display text-lg text-ink">
-            ChessRabbit
-          </Link>
-          <nav className="flex items-center gap-1 text-sm">
+      {/* Chrome: one strip of glass, and the only number that matters pushed
+          to the far end. */}
+      <header className="glass-bar sticky top-0 z-30">
+        <div className="mx-auto flex max-w-6xl items-center gap-5 px-5 py-2.5">
+          <Wordmark />
+          <nav className="seg text-sm">
             <Link href="/app" className="seg-item">Board</Link>
             <span className="seg-item seg-item-on">Train</span>
             <Link href="/prep" className="seg-item">Prep</Link>
@@ -251,7 +250,7 @@ export default function TrainPage() {
         {error && (
           <div
             role="alert"
-            className="mb-4 flex items-start gap-3 rounded-md border border-bad/40 bg-bad/10 px-3 py-2"
+            className="mb-4 flex items-start gap-3 rounded-lg border border-bad/40 bg-bad/10 px-3 py-2"
           >
             <span className="mt-px font-mono text-xs text-bad">!</span>
             <p className="flex-1 text-sm text-ink">{error}</p>
@@ -379,7 +378,7 @@ export default function TrainPage() {
                   {reps.map((r) => (
                     <li
                       key={r.id}
-                      className="group flex items-center gap-3 rounded px-2 py-2 transition-colors
+                      className="group flex items-center gap-3 rounded-md px-2 py-2 transition-colors
                                  hover:bg-raise/40"
                     >
                       <span className="min-w-0 flex-1">
@@ -489,7 +488,7 @@ export default function TrainPage() {
                         {list.map((o) => (
                           <li
                             key={o.id}
-                            className="rounded p-2 hover:bg-raise/40"
+                            className="rounded-md p-2 hover:bg-raise/40"
                           >
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium text-ink">{o.name}</span>

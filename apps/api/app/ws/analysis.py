@@ -244,7 +244,8 @@ async def analysis_socket(ws: WebSocket, token: str = Query(default="")):
                         await ws.close(code=4401, reason="Account not found")
                         return
                     try:
-                        await check_and_increment_usage(db, user_row)
+                        # Committed together with the job row below.
+                        await check_and_increment_usage(db, user_row, commit=False)
                     except HTTPException as exc:
                         detail = exc.detail if isinstance(exc.detail, dict) else {}
                         await ws.send_json({
@@ -260,8 +261,7 @@ async def analysis_socket(ws: WebSocket, token: str = Query(default="")):
                         status="queued",
                     )
                     db.add(job)
-                    await db.commit()
-                    await db.refresh(job)
+                    await db.commit()  # the INSERT returns the id; no refresh needed
                     job_id = job.id
 
                 state.job_id = job_id

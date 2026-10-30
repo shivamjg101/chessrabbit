@@ -47,7 +47,7 @@ export default function VerdictPlate({
 }: Props) {
   if (!verdict) {
     return (
-      <div className="rounded-md bg-panelAlt/70 p-3 ring-1 ring-ivory/[0.06]">
+      <div className="rounded-xl bg-ivory/[0.05] p-3 shadow-edge ring-1 ring-ivory/[0.08]">
         <p className="text-sm font-semibold text-ink">
           {reviewing
             ? "Scoring every move…"
@@ -77,12 +77,12 @@ export default function VerdictPlate({
   return (
     <div
       key={`${verdict.san}-${verdict.cls}-${verdict.live}`}
-      className="relative animate-rise rounded-md bg-panelAlt/90 p-3 pl-4 ring-1 ring-ivory/[0.08]"
+      className="relative animate-rise rounded-xl bg-ivory/[0.07] p-3 pl-4 shadow-edge ring-1 ring-ivory/10"
       style={{ borderLeft: `3px solid ${meta.bg}` }}
     >
       <div className="flex items-center gap-2">
         <span
-          className="grid h-6 w-6 shrink-0 animate-pop place-items-center rounded font-mono font-semibold"
+          className="grid h-6 w-6 shrink-0 animate-pop place-items-center rounded-md font-mono font-semibold"
           style={
             verdict.live
               ? {
@@ -92,7 +92,7 @@ export default function VerdictPlate({
                 }
               : {
                   background: meta.bg,
-                  color: "#0D1728",
+                  color: "#160E09",
                   fontSize: meta.glyph.length > 1 ? 11 : 13,
                 }
           }
@@ -103,7 +103,7 @@ export default function VerdictPlate({
           {headline(verdict.san, verdict.cls)}
         </span>
         {verdict.score && (
-          <span className="ml-auto shrink-0 rounded bg-night/60 px-1.5 py-0.5 font-mono text-xs text-ink">
+          <span className="ml-auto shrink-0 rounded-md bg-night/60 px-1.5 py-0.5 font-mono text-xs text-ink">
             {verdict.score}
           </span>
         )}
@@ -124,7 +124,7 @@ export default function VerdictPlate({
         (onShowBest ? (
           <button
             onClick={() => onShowBest(verdict.bestSan!)}
-            className="mt-2 flex items-center gap-1.5 rounded border border-brass/40 bg-brass/10
+            className="mt-2 flex items-center gap-1.5 rounded-md border border-brass/40 bg-brass/10
                        px-2 py-1 text-xs text-brassLit transition-colors hover:bg-brass/20"
           >
             Best was <span className="san text-brassLit">{verdict.bestSan}</span>

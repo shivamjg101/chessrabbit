@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AnalysisBoard from "@/components/AnalysisBoard";
 import { GamePlayers } from "@/components/PlayerPlate";
 import MoreMenu from "@/components/MoreMenu";
+import Wordmark from "@/components/Wordmark";
 import SettingsModal from "@/components/SettingsModal";
 import { clampToResources } from "@/lib/settings";
 import {
@@ -23,13 +24,17 @@ import {
 // header stays readable instead of growing a link per feature.
 const NAV = [
   { href: "/app", label: "Analyse" },
+  { href: "/database", label: "Database" },
+  { href: "/study", label: "Studies" },
   { href: "/play", label: "Play" },
   { href: "/train/puzzles", label: "Puzzles" },
-  { href: "/insights", label: "Insights" },
 ];
 
 /** Everything reachable from the header, flattened for the phone menu. */
 const MOBILE_NAV = [
+  { href: "/database", label: "Database" },
+  { href: "/study", label: "Studies" },
+  { href: "/search", label: "Reference database" },
   { href: "/play", label: "Play" },
   { href: "/train", label: "Opening drills" },
   { href: "/train/puzzles", label: "Puzzles" },
@@ -101,6 +106,24 @@ function AppWorkspace() {
 
   }, [router, loadGames]);
 
+  // The account menu closes on Escape or a press outside it. A listener, not a
+  // full-screen catcher: the menu sits in the glass top bar, and a `fixed`
+  // catcher inside a blurred bar would only cover the bar.
+  const accountMenu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    const onDown = (e: PointerEvent) => {
+      if (!accountMenu.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [menuOpen]);
+
 
   /**
    * Put a game on the board, given only its id.
@@ -144,7 +167,13 @@ function AppWorkspace() {
   async function doImport() {
     try {
       const res = await api.importPgn(pgnText);
-      setNotice(`Imported ${res.imported} game(s)`);
+      // A refused variant or a game cut short at a bad move is not a clean
+      // import, and saying only "Imported 3" hid that it happened.
+      let msg = `Imported ${res.imported} game(s)`;
+      if (res.duplicates) msg += `, ${res.duplicates} duplicate${res.duplicates === 1 ? "" : "s"} left out`;
+      if (res.skipped) msg += `, ${res.skipped} skipped`;
+      if (res.errors.length) msg += ` — ${res.errors[0]}${res.errors.length > 1 ? ` (+${res.errors.length - 1} more)` : ""}`;
+      setNotice(msg);
       setPgnText("");
       setImportOpen(false);
       loadGames();
@@ -215,9 +244,11 @@ function AppWorkspace() {
 
   if (!me) {
     return (
-      <main className="flex min-h-dvh items-center justify-center gap-3 text-muted">
-        <span className="h-2 w-2 animate-ping rounded-full bg-accent" />
-        Loading your board…
+      <main className="flex min-h-dvh items-center justify-center">
+        <div className="glass flex items-center gap-3 rounded-full px-5 py-2.5 text-sm text-muted">
+          <span className="h-2 w-2 animate-ping rounded-full bg-brass" />
+          Loading your board…
+        </div>
       </main>
     );
   }
@@ -229,8 +260,15 @@ function AppWorkspace() {
         <span className="rounded-full bg-ivory/[0.07] px-1.5 py-0.5 font-mono text-[10px] text-muted">
           {games.length}
         </span>
+        <Link
+          href="/database"
+          className="ml-auto rounded-lg px-1.5 py-0.5 text-xs text-muted hover:bg-ivory/10 hover:text-ink"
+          title="Every game as a sortable, filterable table"
+        >
+          Database
+        </Link>
         <button
-          className="ml-auto rounded-md px-1.5 py-0.5 text-xs text-accent hover:bg-accent/10"
+          className="rounded-lg px-1.5 py-0.5 text-xs text-brassLit hover:bg-brass/15"
           onClick={() => setImportOpen(true)}
         >
           + Import
@@ -251,10 +289,10 @@ function AppWorkspace() {
               <li key={g.id}>
                 <button
                   onClick={() => openGame(g)}
-                  className={`w-full rounded-lg p-2 text-left transition-colors ${
+                  className={`w-full rounded-xl p-2 text-left transition-colors ${
                     active
-                      ? "bg-accent/15 ring-1 ring-accent/40"
-                      : "hover:bg-ivory/[0.06]"
+                      ? "bg-ivory/[0.12] shadow-edge ring-1 ring-brass/40"
+                      : "hover:bg-ivory/[0.07]"
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
@@ -262,7 +300,7 @@ function AppWorkspace() {
                       {g.white || "?"} — {g.black || "?"}
                     </span>
                     <span
-                      className={`shrink-0 rounded px-1.5 py-px font-mono text-[10px] font-semibold ${resultTone(
+                      className={`shrink-0 rounded-md px-1.5 py-px font-mono text-[10px] font-semibold ${resultTone(
                         g.result
                       )}`}
                     >
@@ -271,7 +309,7 @@ function AppWorkspace() {
                   </div>
                   <div className="mt-0.5 flex gap-1.5 text-[10px] text-muted">
                     {g.eco && (
-                      <span className="rounded bg-ivory/[0.07] px-1">{g.eco}</span>
+                      <span className="rounded-md bg-ivory/[0.07] px-1">{g.eco}</span>
                     )}
                     {g.opening && <span className="truncate">{g.opening}</span>}
                     {!g.opening && g.played_on && <span>{g.played_on}</span>}
@@ -288,12 +326,9 @@ function AppWorkspace() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       {/* ---------- Top bar ---------- */}
-      {/* The top bar is the one piece of chrome on every screen, so it carries
-          the grain: it reads as the edge of the table the board sits on. */}
-      <header
-        className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-[#2F4A6B]
-                   bg-panel/80 px-3 shadow-[0_2px_10px_rgba(12,8,5,0.45)] backdrop-blur-xl"
-      >
+      {/* The one piece of chrome on every screen: a strip of dark glass the
+          aurora glows through. */}
+      <header className="glass-bar z-40 flex h-14 shrink-0 items-center gap-3 px-3">
         <button
           className="btn px-2 lg:hidden"
           onClick={() => setDrawerOpen((s) => !s)}
@@ -310,12 +345,7 @@ function AppWorkspace() {
           {railOpen ? "⟨" : "⟩"}
         </button>
 
-        {/* The wordmark is set, not built: no badge, no gradient. The display
-            serif is doing the identifying, which is what a display serif is
-            for. */}
-        <Link href="/app" className="font-display text-lg leading-none text-ink">
-          ChessRabbit
-        </Link>
+        <Wordmark />
 
         {/* Primary nav: one segmented pill group, no icon soup */}
         <nav className="seg ml-2 hidden md:flex">
@@ -336,7 +366,7 @@ function AppWorkspace() {
             onClick={() => setSettingsOpen(true)}
             title="Analysis settings"
             aria-label="Analysis settings"
-            className="rounded-lg px-2 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/[0.07] hover:text-ink"
+            className="grid h-8 w-8 place-items-center rounded-full text-lg leading-none text-muted transition-colors hover:bg-ivory/[0.08] hover:text-ink"
           >
             ⚙
           </button>
@@ -346,12 +376,12 @@ function AppWorkspace() {
             </span>
           )}
           <span className="chip bg-ivory/10 text-muted">{me.local_mode ? "Local" : "Community"}</span>
-          <div className="relative">
+          <div className="relative" ref={accountMenu}>
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="grid h-8 w-8 place-items-center rounded-full border border-brass/50
-                         bg-brass/15 font-mono text-sm text-brassLit transition-colors
-                         hover:border-brass hover:bg-brass/25"
+              className="grid h-8 w-8 place-items-center rounded-full border border-white/30
+                         bg-gradient-to-br from-brassLit/60 to-copper/70 text-sm font-semibold
+                         text-white shadow-edge transition-[filter] hover:brightness-125"
               title={me.display_name || me.email}
               aria-label="Account menu"
             >
@@ -359,8 +389,7 @@ function AppWorkspace() {
             </button>
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="card absolute right-0 top-full z-50 mt-2 w-60 p-1.5 shadow-card">
+                <div className="menu-pane absolute right-0 top-full z-50 mt-2 w-60 animate-rise p-1.5">
                   <div className="mb-1 border-b border-ivory/[0.06] px-3 py-2">
                     <p className="truncate text-sm font-medium">
                       {me.display_name || me.email}
@@ -378,26 +407,26 @@ function AppWorkspace() {
                       <Link
                         key={n.href}
                         href={n.href}
-                        className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                        className="block rounded-xl px-3 py-1.5 text-sm text-ink/90 hover:bg-ivory/[0.06]"
                       >
                         {n.label}
                       </Link>
                     ))}
                   </div>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-xl px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
                     onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}
                   >
                     Analysis settings
                   </button>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-xl px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
                     onClick={() => { setMenuOpen(false); setImportOpen(true); }}
                   >
                     Import PGN
                   </button>
                   <button
-                    className="w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="w-full rounded-xl px-3 py-1.5 text-left text-sm text-ink/90 hover:bg-ivory/[0.06]"
                     onClick={() => { setMenuOpen(false); openAccounts(); }}
                   >
                     Connected accounts
@@ -405,12 +434,12 @@ function AppWorkspace() {
 
                   <Link
                     href="/download"
-                    className="block rounded-lg px-3 py-1.5 text-sm text-ink/90 hover:bg-ivory/[0.06]"
+                    className="block rounded-xl px-3 py-1.5 text-sm text-ink/90 hover:bg-ivory/[0.06]"
                   >
                     Download and setup
                   </Link>
                   <button
-                    className="mt-1 w-full rounded-lg border-t border-ivory/[0.06] px-3 py-1.5 pt-2 text-left text-sm text-bad hover:bg-bad/10"
+                    className="mt-1 w-full rounded-xl border-t border-ivory/[0.06] px-3 py-1.5 pt-2 text-left text-sm text-bad hover:bg-bad/10"
                     onClick={signOut}
                   >
                     Sign out
@@ -424,10 +453,11 @@ function AppWorkspace() {
 
       {notice && (
         <button
-          className="shrink-0 border-b border-accent/20 bg-accent/15 px-4 py-2 text-left text-sm"
+          className="glass mx-3 mt-2 flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-left text-sm"
           onClick={() => setNotice(null)}
         >
-          {notice} <span className="text-muted">(dismiss)</span>
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent shadow-glow" />
+          {notice} <span className="ml-auto text-xs text-muted">dismiss</span>
         </button>
       )}
 
@@ -435,8 +465,8 @@ function AppWorkspace() {
       <div className="flex flex-1 lg:min-h-0">
         {/* Games rail - static on desktop, drawer on mobile */}
         <aside
-          className={`hidden w-[264px] shrink-0 border-r border-ivory/[0.07] bg-panel/40
-                      backdrop-blur-xl lg:block ${railOpen ? "" : "lg:hidden"}`}
+          className={`glass m-2 mr-0 hidden w-[264px] shrink-0 overflow-hidden rounded-2xl
+                      lg:block ${railOpen ? "" : "lg:hidden"}`}
         >
           {gamesRail}
         </aside>
@@ -444,10 +474,10 @@ function AppWorkspace() {
         {drawerOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
             <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="scrim absolute inset-0"
               onClick={() => setDrawerOpen(false)}
             />
-            <aside className="absolute inset-y-0 left-0 w-[280px] animate-rise border-r border-ivory/10 bg-panel shadow-card">
+            <aside className="glass absolute inset-y-2 left-2 w-[280px] animate-rise overflow-hidden rounded-2xl bg-panel/70">
               {gamesRail}
             </aside>
           </div>
@@ -472,14 +502,14 @@ function AppWorkspace() {
       {/* ---------- Connected accounts modal ---------- */}
       {accountsOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="scrim fixed inset-0 z-50 flex items-center justify-center p-4"
           onClick={() => setAccountsOpen(false)}
         >
           <div
-            className="card w-full max-w-lg space-y-4 p-4 shadow-card"
+            className="card-float w-full max-w-lg animate-fade space-y-4 p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="font-semibold">Connected accounts</h2>
+            <h2 className="font-display text-lg">Connected accounts</h2>
             <p className="text-xs text-muted">
               Link your Lichess or Chess.com username and your games import
               automatically — newest first, synced nightly.
@@ -566,14 +596,14 @@ function AppWorkspace() {
       {/* ---------- Import modal ---------- */}
       {importOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="scrim fixed inset-0 z-50 flex items-center justify-center p-4"
           onClick={() => setImportOpen(false)}
         >
           <div
-            className="card w-full max-w-lg space-y-3 p-4 shadow-card"
+            className="card-float w-full max-w-lg animate-fade space-y-3 p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="font-semibold">Import PGN</h2>
+            <h2 className="font-display text-lg">Import PGN</h2>
             <textarea
               className="input h-48 font-mono text-xs"
               placeholder={'[Event "..."]\n\n1. e4 e5 ...'}

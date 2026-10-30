@@ -17,7 +17,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import MoreMenu from "@/components/MoreMenu";
-import { api, ApiError, Game, GameSearchQuery, SearchResults } from "@/lib/api";
+import { api, ApiError, Game, GameSearchQuery, NoveltyScope, SearchResults } from "@/lib/api";
 
 type Mode = "players" | "position";
 
@@ -44,11 +44,15 @@ function SearchScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const fenParam = params.get("fen");
+  // A position can be looked up in your own games too: a new install has no
+  // reference database, and your games are often the question anyway.
+  const scopeParam: NoveltyScope = params.get("scope") === "mine" ? "mine" : "reference";
 
   const [mode, setMode] = useState<Mode>(fenParam ? "position" : "players");
   const [query, setQuery] = useState<GameSearchQuery>(EMPTY);
   const [minElo, setMinElo] = useState("");
   const [fen, setFen] = useState(fenParam ?? "");
+  const [scope, setScope] = useState<NoveltyScope>(scopeParam);
 
   const [results, setResults] = useState<SearchResults | null>(null);
   const [page, setPage] = useState(1);
@@ -64,7 +68,7 @@ function SearchScreen() {
       try {
         const res =
           which === "position"
-            ? await api.searchPosition(fen.trim() || START_FEN, at)
+            ? await api.searchPosition(fen.trim() || START_FEN, at, scope)
             : await api.searchGames(
                 { ...query, min_elo: minElo ? Number(minElo) : undefined },
                 at
@@ -85,7 +89,7 @@ function SearchScreen() {
         setBusy(false);
       }
     },
-    [fen, query, minElo]
+    [fen, query, minElo, scope]
   );
 
   // A position arriving from the board is a search the user already asked for
@@ -121,11 +125,13 @@ function SearchScreen() {
 
   return (
     <div className="mx-auto min-h-screen max-w-5xl p-4">
-      <header className="mb-5 flex flex-wrap items-center gap-3">
+      <header className="glass relative z-30 mb-5 flex flex-wrap items-center gap-3 rounded-2xl px-3 py-2.5">
         <Link href="/app" className="btn">
           ← Board
         </Link>
-        <h1 className="font-display text-xl">Reference database</h1>
+        <h1 className="font-display text-xl">
+          {mode === "position" && scope === "mine" ? "Your games" : "Reference database"}
+        </h1>
         <nav className="seg ml-auto hidden md:flex">
           <MoreMenu />
         </nav>
@@ -145,7 +151,7 @@ function SearchScreen() {
       </div>
 
       {mode === "players" ? (
-        <div className="mb-5 space-y-3 rounded-xl border border-ivory/5 bg-panelAlt/60 p-4">
+        <div className="card mb-5 space-y-3 p-4">
           <div className="flex flex-wrap gap-2">
             {field("white", "White", "Carlsen")}
             {field("black", "Black", "Nepomniachtchi")}
@@ -201,10 +207,28 @@ function SearchScreen() {
           </p>
         </div>
       ) : (
-        <div className="mb-5 space-y-2 rounded-xl border border-ivory/5 bg-panelAlt/60 p-4">
-          <label className="mb-1 block text-xs text-muted" htmlFor="f-fen">
-            Position (FEN)
-          </label>
+        <div className="card mb-5 space-y-2 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="block text-xs text-muted" htmlFor="f-fen">
+              Position (FEN)
+            </label>
+            <div className="seg ml-auto" role="group" aria-label="Which games to search">
+              {(["reference", "mine"] as NoveltyScope[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => {
+                    setScope(s);
+                    setResults(null);
+                    setSearched(false);
+                  }}
+                  aria-pressed={scope === s}
+                  className={`seg-item text-xs ${scope === s ? "seg-item-on" : ""}`}
+                >
+                  {s === "reference" ? "Reference games" : "My games"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
             <input
               id="f-fen"
@@ -219,21 +243,23 @@ function SearchScreen() {
             </button>
           </div>
           <p className="text-[11px] text-muted">
-            Exact-position search over every position reached in the reference
-            database. Easier from the board: play into a position and use{" "}
+            Exact-position search over the first 20 moves of every game in{" "}
+            {scope === "mine" ? "your database" : "the reference database"}.
+            Easier from the board: play into a position and use{" "}
             <span className="text-ink">Find games with this position</span> in
-            the Book tab.
+            its Tools menu or Book tab.
           </p>
         </div>
       )}
 
       {error && (
-        <div className="mb-4 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm">
+        <div className="mb-4 rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm">
           {error}
         </div>
       )}
 
       <Results
+        mine={mode === "position" && scope === "mine"}
         results={results}
         searched={searched}
         busy={busy}
@@ -246,6 +272,7 @@ function SearchScreen() {
 }
 
 function Results({
+  mine,
   results,
   searched,
   busy,
@@ -253,6 +280,8 @@ function Results({
   onPage,
   onOpen,
 }: {
+  /** The search ran over your games, not the reference database. */
+  mine?: boolean;
   results: SearchResults | null;
   searched: boolean;
   busy: boolean;
@@ -270,12 +299,14 @@ function Results({
 
   if (results && results.games.length === 0) {
     return (
-      <div className="rounded-xl border border-ivory/5 bg-panelAlt/60 p-8 text-center">
+      <div className="card p-8 text-center">
         <p className="font-display text-lg">No games matched</p>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
           {page > 1
             ? "That was the last page."
-            : "Try fewer filters. If nothing at all comes back, the reference database may not be loaded yet — see pipeline/load_reference_games.py."}
+            : mine
+              ? "None of your games reached this position in their first 20 moves."
+              : "Try fewer filters. If nothing at all comes back, the reference database may not be loaded yet — search My games instead, or see pipeline/load_reference_games.py."}
         </p>
       </div>
     );
@@ -285,7 +316,7 @@ function Results({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border border-ivory/5 bg-panelAlt/60">
+      <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wider text-muted">
             <tr className="border-b border-ivory/[0.06]">

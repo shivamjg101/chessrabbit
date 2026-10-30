@@ -173,8 +173,8 @@ if __name__ == '__main__':
     # Keep in step with src/lib/vizTheme.ts and the `panel` colour in
     # tailwind.config.ts - the surface is what the contrast gate measures
     # against, so a change to the panel invalidates every number below.
-    SURFACE = '#152438'
-    OUTCOME = ['#7FD2B6', '#7C8CA6', '#D9584A']
+    SURFACE = '#2E231B'
+    OUTCOME = ['#94DBA6', '#8F99A3', '#D4513F']
     SERIES = ['#5AA0E0', '#D9A356', '#35B29B', '#9080E6', '#D4688C', '#8CB43F']
     SEQUENTIAL = ['#DEE8E1', '#A9CFC1', '#72B4A0', '#47907D', '#2C6A5C']
 

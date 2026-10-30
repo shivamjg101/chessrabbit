@@ -140,9 +140,9 @@ export default function StudyShare({ study, members, onStudy, onMembers }: Props
           {OPTIONS.map((o) => (
             <label
               key={o.value}
-              className={`flex cursor-pointer gap-2 rounded-lg border px-2.5 py-2 transition-colors ${
+              className={`flex cursor-pointer gap-2 rounded-xl border px-2.5 py-2 transition-colors ${
                 study.visibility === o.value
-                  ? "border-accent/50 bg-accent/10"
+                  ? "border-brass/50 bg-brass/10"
                   : "border-ivory/10 hover:bg-ivory/[0.05]"
               }`}
             >
@@ -215,7 +215,7 @@ export default function StudyShare({ study, members, onStudy, onMembers }: Props
                   onClick={() => removeMember(m.user_id)}
                   disabled={busy}
                   title={`Remove ${m.display_name}`}
-                  className="shrink-0 rounded px-1.5 text-muted hover:bg-bad/20 hover:text-bad
+                  className="shrink-0 rounded-md px-1.5 text-muted hover:bg-bad/20 hover:text-bad
                              disabled:opacity-40"
                 >
                   ✕

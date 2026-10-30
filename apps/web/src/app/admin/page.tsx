@@ -59,7 +59,7 @@ export default function AdminLoginPage() {
           </p>
         </div>
 
-        {error && <p className="text-sm text-bad">{error}</p>}
+        {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
         <input
           className="input"

@@ -200,19 +200,23 @@ async def sync_blunder_puzzles(
         return rep
 
     created = skipped = invalid = 0
-    board_cache: dict[int, list] = {}  # game_id -> parsed move list
+    # game_id -> (start position, main-line moves). The start is the game's own:
+    # one from a set-up position carries its [FEN] in the movetext.
+    board_cache: dict[int, tuple[chess.Board, list]] = {}
     new_cards: list[dict] = []  # written once at the end, not per mistake
 
     for game_id, ply, best_uci, movetext in mistakes:
         if game_id not in board_cache:
             parsed = chess.pgn.read_game(io.StringIO(movetext))
-            board_cache[game_id] = list(parsed.mainline_moves()) if parsed else []
-        moves = board_cache[game_id]
+            board_cache[game_id] = (
+                (parsed.board(), list(parsed.mainline_moves())) if parsed else (chess.Board(), [])
+            )
+        start, moves = board_cache[game_id]
         if ply > len(moves):
             invalid += 1
             continue
 
-        board = chess.Board()
+        board = start.copy()
         for mv in moves[:ply]:
             board.push(mv)
 

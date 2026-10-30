@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import re
+from dataclasses import dataclass, field
 
 import chess
 import chess.pgn
@@ -33,8 +34,14 @@ def _normalize_headers(pgn_text: str) -> str:
     """Repair PGNs pasted from web pages where header tags lost their
     newlines: [White "A"] [Black "B"] -> one tag per line, per the spec.
     The pattern only matches directly-adjacent tag brackets, so movetext
-    comments like {[%clk 0:03]} are untouched."""
-    return re.sub(r'\]\s*\[', ']\n[', pgn_text)
+    comments like {[%clk 0:03]} are untouched.
+
+    Also puts the blank line back between one game's moves and the next
+    game's tags. Without it python-chess reads `[Event "Club2"]` as more
+    moves of the game before - "illegal san: b2" - and cuts that game short.
+    A clock comment (`[%clk`) is not a tag, so it is never split off."""
+    text = re.sub(r'\]\s*\[', ']\n[', pgn_text)
+    return re.sub(r'(?<=[^\]\s])[ \t]*\r?\n(?=\[\w+\s+")', '\n\n', text)
 
 
 def opening_of(headers) -> str | None:
@@ -131,13 +138,68 @@ def _safe_datetime(day: str | None, clock: str | None):
     return None
 
 
-def parse_pgn(pgn_text: str) -> list[dict]:
+# Rules other than standard chess replay wrongly on a standard board - here,
+# in the engine worker and in the browser - and the position index assumes
+# normal rules. "From Position" is Lichess's name for a standard game that
+# starts from a set-up position.
+_STANDARD_VARIANTS = {"", "standard", "from position"}
+
+_LEADING_TAGS = re.compile(r'^(?:\s*\[\s*\w+\s*"[^"]*"\s*\]\s*)+')
+
+
+def setup_tags(fen: str) -> str:
+    """The tag pairs that put a game on a set-up position, ahead of its moves."""
+    return f'[SetUp "1"]\n[FEN "{fen}"]\n\n'
+
+
+def split_setup(movetext: str) -> tuple[list[str], str]:
+    """
+    A stored movetext's leading tag pairs, and the moves after them.
+
+    A game from a set-up position keeps `[SetUp]`/`[FEN]` at the head of its
+    movetext (see `parse_pgn`), which is what every reader of the column -
+    python-chess here and in the worker, `parsePgn` in the browser - already
+    understands. Only a writer of a whole PGN file needs them apart, so its
+    one tag section holds them.
+    """
+    match = _LEADING_TAGS.match(movetext)
+    if not match:
+        return [], movetext
+    tags = [t.strip() for t in re.findall(r'\[[^\]]*\]', match.group(0))]
+    return tags, movetext[match.end():].lstrip()
+
+
+def mainline_uci(movetext: str) -> tuple[str, ...] | None:
+    """The start position and every main-line move: what makes two games the same game."""
+    game = chess.pgn.read_game(io.StringIO(movetext))
+    if game is None:
+        return None
+    return (game.board().fen(), *(m.uci() for m in game.mainline_moves()))
+
+
+@dataclass
+class ParseReport:
+    """What `parse_pgn` left out or cut short, so an import can say so."""
+
+    refused: int = 0
+    notes: list[str] = field(default_factory=list)
+
+
+def parse_pgn(pgn_text: str, report: ParseReport | None = None) -> list[dict]:
     """
     Parse one or more games from PGN text into dicts ready for insertion.
     Returns [] rather than raising on unparseable input.
+
+    `report`, when given, collects one line per game that was refused or cut
+    short, instead of letting an import report a clean success.
     """
     games: list[dict] = []
     stream = io.StringIO(_normalize_headers(pgn_text))
+    number = 0
+
+    def note(text: str) -> None:
+        if report is not None:
+            report.notes.append(text[:200])
 
     while True:
         try:
@@ -146,8 +208,17 @@ def parse_pgn(pgn_text: str) -> list[dict]:
             break
         if game is None:
             break
+        number += 1
 
         headers = game.headers
+        players = f"{headers.get('White', '?')} – {headers.get('Black', '?')}"
+        variant = headers.get("Variant", "").strip()
+        if variant.lower() not in _STANDARD_VARIANTS:
+            note(f"Game {number} ({players}): {variant} is not supported, only standard chess")
+            if report is not None:
+                report.refused += 1
+            continue
+
         moves = list(game.mainline_moves())
 
         # python-chess yields an empty Game object for junk input rather than
@@ -155,8 +226,25 @@ def parse_pgn(pgn_text: str) -> list[dict]:
         if not moves:
             continue
 
+        # An illegal or unreadable move ends python-chess's main line there,
+        # silently. The moves before it are still a game worth keeping, but the
+        # user is told it is shorter than the file.
+        if game.errors:
+            # Numbered from the game's own first move: a set-up position may
+            # start with Black to move, or at move 30.
+            first = game.board()
+            ply = (first.fullmove_number - 1) * 2 + (first.turn == chess.BLACK) + len(moves)
+            at = f"{ply // 2 + 1}{'...' if ply % 2 else '.'}"
+            note(f"Game {number} ({players}): unreadable move at {at}; the moves before it were kept")
+
         exporter = chess.pgn.StringExporter(headers=False, variations=True, comments=True)
         movetext = game.accept(exporter).strip()
+        # Without its [FEN] a set-up game's moves are replayed from the opening
+        # array, where they are illegal: the game imported "fine" and then
+        # could not be shown, reviewed or exported.
+        start = game.board().fen()
+        if start != chess.STARTING_FEN:
+            movetext = setup_tags(start) + movetext
 
         result = _safe_result(headers.get("Result", "*"))
         time_control = headers.get("TimeControl") or None
