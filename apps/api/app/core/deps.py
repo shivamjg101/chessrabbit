@@ -83,10 +83,11 @@ async def get_optional_user(
 
 
 
-async def check_and_increment_usage(db: AsyncSession, user: User) -> int:
+async def check_and_increment_usage(db: AsyncSession, user: User, commit: bool = True) -> int:
     """
     Atomically count today's analyses without daily quotas.
-    Returns the new count for local usage statistics.
+    Returns the new count for local usage statistics. With commit=False the
+    count rides on the caller's transaction, saving a round trip.
     """
     today = date.today()
 
@@ -103,7 +104,8 @@ async def check_and_increment_usage(db: AsyncSession, user: User) -> int:
         {"uid": user.id, "day": today},
     )
     count = result.scalar_one()
-    await db.commit()
+    if commit:
+        await db.commit()
 
     return count
 

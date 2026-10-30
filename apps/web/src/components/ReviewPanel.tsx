@@ -189,7 +189,7 @@ export default function ReviewPanel({
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
           preserveAspectRatio="none"
-          className="h-20 w-full cursor-crosshair rounded-xl bg-ebony ring-1 ring-ivory/[0.08]"
+          className="h-20 w-full cursor-crosshair rounded-2xl bg-ebony ring-1 ring-ivory/[0.08]"
           onPointerDown={seekFromPointer}
           onPointerMove={(e) => e.buttons === 1 && seekFromPointer(e)}
           role="img"
@@ -212,7 +212,7 @@ export default function ReviewPanel({
             y1={H / 2}
             x2={W}
             y2={H / 2}
-            stroke="#3FBFA3"
+            stroke="#70C586"
             strokeWidth={0.6}
             strokeDasharray="3 3"
             opacity={0.7}
@@ -224,7 +224,7 @@ export default function ReviewPanel({
               cy={d.y}
               r={3}
               fill={d.fill}
-              stroke="#16202F"
+              stroke="#1A120C"
               strokeWidth={1}
             />
           ))}

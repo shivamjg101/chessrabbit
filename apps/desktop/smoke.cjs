@@ -1,5 +1,6 @@
 // Exercise the installed native runtime, not a development server or mock engine.
 const assert = require("node:assert/strict");
+const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -45,7 +46,12 @@ exports.run = async function run(origin, data, control) {
   }
   const position = await request("/analysis/position", { fen: FEN, engine: "stockfish", depth: 8, multipv: 2 }, "POST");
   assert.equal((await waitForJob(position.job_id)).lines.length, 2);
-  const imported = await request("/games", { pgn: '[White "Desktop"]\n[Black "Installer smoke test"]\n[Result "*"]\n\n1. e4 e5 2. Nf3 Nc6 *' }, "POST");
+  // A different game each run: the same game imported again is a duplicate,
+  // which the API leaves out - and this suite runs twice on one workspace.
+  const pgn = `[White "Desktop"]\n[Black "Installer smoke test ${randomUUID().slice(0, 8)}"]\n[Result "*"]\n\n1. e4 e5 2. Nf3 Nc6 *`;
+  const imported = await request("/games", { pgn }, "POST");
+  assert.equal(imported.imported, 1);
+  assert.equal((await request("/games", { pgn }, "POST")).duplicates, 1);
   const game = imported.game_ids[0];
   const review = await request(`/analysis/game/${game}?engine=stockfish&depth=8`, undefined, "POST");
   assert((await waitForJob(review.job_id)).accuracy);

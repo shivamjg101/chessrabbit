@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MODE_META } from "@/components/ChapterOptions";
 import { StudyChapter } from "@/lib/api";
+
+/** Past this many chapters the rail grows a filter box. */
+const SEARCH_FROM = 8;
 
 /**
  * The chapter rail: every board in this study, and the way between them.
@@ -21,6 +25,8 @@ interface Props {
   onRename: (id: number, name: string) => void;
   onDelete: (id: number) => void;
   onMove: (id: number, delta: -1 | 1) => void;
+  /** Open a chapter's settings: name, prose, mode, tags. */
+  onSettings: (id: number) => void;
 }
 
 export default function StudyChapters({
@@ -33,10 +39,15 @@ export default function StudyChapters({
   onRename,
   onDelete,
   onMove,
+  onSettings,
 }: Props) {
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
+  const [filter, setFilter] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const needle = filter.trim().toLowerCase();
+  // Reordering by arrows only makes sense on the whole list.
+  const filtering = needle.length > 0;
 
   useEffect(() => {
     if (editing !== null) input.current?.focus();
@@ -60,7 +71,7 @@ export default function StudyChapters({
             onClick={onAdd}
             disabled={busy}
             title="Add a chapter"
-            className="ml-auto rounded border border-ivory/10 px-2 py-0.5 text-xs text-muted
+            className="ml-auto rounded-md border border-ivory/10 px-2 py-0.5 text-xs text-muted
                        transition-colors hover:bg-ivory/10 hover:text-ink disabled:opacity-40"
           >
             + Add
@@ -68,16 +79,34 @@ export default function StudyChapters({
         )}
       </div>
 
+      {chapters.length >= SEARCH_FROM && (
+        <div className="shrink-0 px-2 pb-1.5">
+          <input
+            className="input h-7 py-0 text-xs"
+            placeholder="Find a chapter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+        </div>
+      )}
+
       <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2">
         {chapters.map((c, i) => {
           const active = c.id === activeId;
+          if (
+            filtering &&
+            !c.name.toLowerCase().includes(needle) &&
+            !Object.values(c.tags ?? {}).some((v) => v.toLowerCase().includes(needle))
+          ) {
+            return null;
+          }
           return (
             <li key={c.id}>
               <div
-                className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm
+                className={`group flex items-center gap-1 rounded-xl px-2 py-1.5 text-sm
                             transition-colors ${
                               active
-                                ? "bg-accent/[0.18] text-ink"
+                                ? "bg-ivory/[0.12] text-ink shadow-edge ring-1 ring-brass/40"
                                 : "text-muted hover:bg-ivory/[0.06] hover:text-ink"
                             }`}
               >
@@ -106,11 +135,28 @@ export default function StudyChapters({
                     className="min-w-0 flex-1 truncate text-left"
                   >
                     <span className="mr-1.5 font-mono text-[10px] opacity-50">{i + 1}</span>
+                    {c.mode !== "normal" && (
+                      <span className="mr-1" title={MODE_META[c.mode].label} aria-label={MODE_META[c.mode].label}>
+                        {MODE_META[c.mode].icon}
+                      </span>
+                    )}
                     {c.name}
                   </button>
                 )}
 
-                {canEdit && editing !== c.id && (
+                {editing !== c.id && (
+                  <button
+                    onClick={() => onSettings(c.id)}
+                    title={canEdit ? "Chapter settings" : "Chapter details"}
+                    aria-label={canEdit ? `Settings for ${c.name}` : `Details of ${c.name}`}
+                    className="shrink-0 rounded-md px-1 text-[11px] opacity-0 transition-opacity hover:bg-ivory/10
+                               focus:opacity-100 group-hover:opacity-100"
+                  >
+                    ⚙
+                  </button>
+                )}
+
+                {canEdit && editing !== c.id && !filtering && (
                   // Held out of the way until the row is wanted, so eight
                   // chapters read as eight names rather than as a control panel.
                   <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity
@@ -119,7 +165,7 @@ export default function StudyChapters({
                       onClick={() => onMove(c.id, -1)}
                       disabled={i === 0 || busy}
                       title="Move up"
-                      className="rounded px-1 text-[11px] hover:bg-ivory/10 disabled:opacity-25"
+                      className="rounded-md px-1 text-[11px] hover:bg-ivory/10 disabled:opacity-25"
                     >
                       ↑
                     </button>
@@ -127,7 +173,7 @@ export default function StudyChapters({
                       onClick={() => onMove(c.id, 1)}
                       disabled={i === chapters.length - 1 || busy}
                       title="Move down"
-                      className="rounded px-1 text-[11px] hover:bg-ivory/10 disabled:opacity-25"
+                      className="rounded-md px-1 text-[11px] hover:bg-ivory/10 disabled:opacity-25"
                     >
                       ↓
                     </button>
@@ -139,7 +185,7 @@ export default function StudyChapters({
                           ? "A study keeps at least one chapter"
                           : `Delete ${c.name}`
                       }
-                      className="rounded px-1 text-[11px] hover:bg-bad/20 hover:text-bad disabled:opacity-25"
+                      className="rounded-md px-1 text-[11px] hover:bg-bad/20 hover:text-bad disabled:opacity-25"
                     >
                       ✕
                     </button>

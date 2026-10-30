@@ -17,6 +17,7 @@ from app.models.models import (
     Repertoire,
     Study,
     StudyChapter,
+    StudyLike,
     StudyMember,
     TrainingCard,
     UsageDaily,
@@ -27,6 +28,6 @@ __all__ = [
     "AdminAudit", "AnalysisCache", "AnalysisJob", "Annotation", "Collection",
     "CollectionGame", "DailyActiveUser", "EmailToken", "ExternalAccount",
     "Game", "GamePosition", "OpeningTree", "Puzzle", "PuzzleAttempt",
-    "RefreshToken", "Repertoire", "Study", "StudyChapter", "StudyMember",
-    "TrainingCard", "UsageDaily", "User",
+    "RefreshToken", "Repertoire", "Study", "StudyChapter", "StudyLike",
+    "StudyMember", "TrainingCard", "UsageDaily", "User",
 ]

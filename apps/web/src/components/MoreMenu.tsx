@@ -44,6 +44,11 @@ const GROUPS: {
     heading: "Study",
     items: [
       {
+        href: "/database",
+        label: "My database",
+        blurb: "Filter, sort, file and export your games",
+      },
+      {
         href: "/search",
         label: "Reference database",
         blurb: "Search master games by player, opening or position",
@@ -51,7 +56,7 @@ const GROUPS: {
       {
         href: "/study",
         label: "Studies",
-        blurb: "Annotated chapters you can share",
+        blurb: "Chapters, interactive lessons, public studies",
       },
       {
         href: "/insights",
@@ -86,14 +91,24 @@ export default function MoreMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Escape closes it, like every other menu on the platform.
+  // Escape closes it, like every other menu on the platform, and so does a
+  // press anywhere outside it. A listener rather than a full-screen
+  // click-catcher: the menu lives in glass headers, and inside a blurred pane a
+  // `fixed` catcher only covers the pane.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
   }, [open]);
 
   return (
@@ -115,10 +130,9 @@ export default function MoreMenu() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
             role="menu"
-            className="card absolute left-0 top-full z-50 mt-2 w-72 animate-rise p-1.5 shadow-card"
+            className="menu-pane absolute left-0 top-full z-50 mt-2 w-72 animate-rise p-1.5"
           >
             {GROUPS.map((group, gi) => (
               <div
@@ -132,7 +146,7 @@ export default function MoreMenu() {
                     href={item.href}
                     role="menuitem"
                     onClick={() => setOpen(false)}
-                    className="flex items-start gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-ivory/[0.07]"
+                    className="flex items-start gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-ivory/[0.08]"
                   >
                     <span className="min-w-0">
                       <span className="block text-sm">{item.label}</span>

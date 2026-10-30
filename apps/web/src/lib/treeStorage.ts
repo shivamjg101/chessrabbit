@@ -5,6 +5,7 @@ import {
   ROOT,
   addMove,
   annotate,
+  START_FEN,
   createTree,
   mainlinePath,
 } from "@/lib/moveTree";
@@ -42,6 +43,7 @@ interface StoredMove {
   e?: number | null;
   c?: string;
   n?: number;
+  g?: number[]; // position and observation glyphs
 }
 
 interface StoredTree {
@@ -55,6 +57,13 @@ interface StoredTree {
    * cannot travel in `moves` the way every other annotation does.
    */
   r?: string;
+  /**
+   * The position the tree stands on, when it is not the opening array - a
+   * board set up from a FEN. Without it the moves would be replayed from the
+   * wrong start, and any that happened to be legal there would come back as
+   * a different game.
+   */
+  f?: string;
 }
 
 /**
@@ -79,6 +88,7 @@ export function serializeTree(tree: MoveTree, cursorId: NodeId): StoredTree {
       if (n.evalCp != null) m.e = n.evalCp;
       if (n.comment) m.c = n.comment;
       if (n.nag != null) m.n = n.nag;
+      if (n.nags?.length) m.g = n.nags;
       return m;
     });
 
@@ -90,17 +100,21 @@ export function serializeTree(tree: MoveTree, cursorId: NodeId): StoredTree {
   };
   const rootComment = tree.nodes.get(tree.root)?.comment;
   if (rootComment) out.r = rootComment;
+  const rootFen = tree.nodes.get(tree.root)?.fen;
+  if (rootFen && rootFen !== START_FEN) out.f = rootFen;
   return out;
 }
 
 export function deserializeTree(data: StoredTree): { tree: MoveTree; cursorId: NodeId } {
-  let tree = createTree();
+  let tree = createTree(data.f);
   if (data.r) tree = annotate(tree, ROOT, { comment: data.r });
   for (const m of data.moves) {
     const r = addMove(tree, m.p, m.s, { source: m.k ?? "user", evalCp: m.e ?? null });
     if (r.id === m.p) break; // the list stopped describing a legal game
     tree = r.tree;
-    if (m.c || m.n != null) tree = annotate(tree, r.id, { comment: m.c, nag: m.n });
+    if (m.c || m.n != null || m.g?.length) {
+      tree = annotate(tree, r.id, { comment: m.c, nag: m.n, nags: m.g });
+    }
   }
   return { tree: { ...tree, locked: data.locked }, cursorId: data.cursor };
 }
@@ -116,7 +130,7 @@ export function deserializeTree(data: StoredTree): { tree: MoveTree; cursorId: N
 function worthKeeping(tree: MoveTree): boolean {
   if (tree.nodes.size - 1 > mainlinePath(tree).length) return true;
   for (const n of tree.nodes.values()) {
-    if (n.comment || n.nag != null) return true;
+    if (n.comment || n.nag != null || n.nags?.length) return true;
   }
   return false;
 }

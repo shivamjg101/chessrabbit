@@ -200,7 +200,7 @@ export default function IntuitionPage() {
 
   return (
     <div className="min-h-screen p-4 max-w-5xl mx-auto">
-      <header className="flex items-center gap-3 mb-4 flex-wrap">
+      <header className="glass relative z-30 mb-5 flex flex-wrap items-center gap-3 rounded-2xl px-3 py-2.5">
         <Link href="/train" className="btn">← Training</Link>
         <h1 className="font-display text-xl">Intuition</h1>
         {phase !== "idle" && phase !== "done" && (
@@ -221,7 +221,7 @@ export default function IntuitionPage() {
       )}
 
       {phase === "idle" && (
-        <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-8 text-center space-y-3 max-w-xl mx-auto">
+        <div className="card p-8 text-center space-y-3 max-w-xl mx-auto">
           <p className="text-2xl font-display">Guess the master&apos;s move</p>
           <p className="text-muted">
             Ten positions from real master games. {SECONDS} seconds each — no
@@ -235,7 +235,7 @@ export default function IntuitionPage() {
       )}
 
       {phase === "done" && (
-        <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-8 text-center space-y-3 max-w-xl mx-auto">
+        <div className="card p-8 text-center space-y-3 max-w-xl mx-auto">
           <p className="text-2xl font-display">
             {hits >= 7 ? "Sharp instincts! 🎯" : hits >= 4 ? "Solid feel for the game" : "Keep training that gut"}
           </p>
@@ -269,7 +269,7 @@ export default function IntuitionPage() {
 
           <aside className="flex-1 space-y-3 min-w-[260px]">
             {pos && (
-              <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4">
+              <div className="card p-4">
                 <p className="text-xs text-muted">
                   {pos.white} ({pos.white_elo ?? "?"}) vs {pos.black} ({pos.black_elo ?? "?"})
                   · move {Math.floor(pos.ply / 2) + 1}
@@ -281,14 +281,14 @@ export default function IntuitionPage() {
             )}
 
             {phase === "answer" && (
-              <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4">
+              <div className="card p-4">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted">Trust your gut</span>
                   <span className={`font-mono font-bold ${timeLeft <= 5 ? "text-bad" : ""}`}>
                     {timeLeft.toFixed(1)}s
                   </span>
                 </div>
-                <div className="h-2 bg-black/30 rounded overflow-hidden">
+                <div className="h-2 bg-black/30 rounded-md overflow-hidden">
                   <div
                     className={`h-full ${timeLeft <= 5 ? "bg-bad" : "bg-accent"}`}
                     style={{ width: `${(100 * timeLeft) / SECONDS}%`, transition: "width 0.1s linear" }}
@@ -301,7 +301,7 @@ export default function IntuitionPage() {
             )}
 
             {phase === "feedback" && feedback && (
-              <div className={`rounded-xl p-4 ${feedback.hit ? "bg-accent/20" : "bg-panelAlt/60 border border-ivory/5"}`}>
+              <div className={`rounded-2xl p-4 ${feedback.hit ? "bg-accent/20 ring-1 ring-accent/30" : "card"}`}>
                 <p className="text-lg font-semibold">
                   {feedback.hit ? "✓ Hit!" : "✗ Miss"}
                 </p>

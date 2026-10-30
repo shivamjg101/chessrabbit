@@ -25,19 +25,34 @@ export interface BoardTheme {
 }
 
 /**
- * The default is chalk on blue-slate, and the two colours it is NOT are load
- * bearing:
+ * The default is walnut: warm timber squares seated in cool glass. The board
+ * is the one warm object on the page, so the eye lands on the position before
+ * it lands on any chrome. The cool themes stay one click away in Settings.
  *
- *   not brown  — timber is the one thing every chess site already looks like,
- *                and this app is a memory instrument, not a clubhouse table.
- *   not green  — verdigris means "you played the right move" everywhere else
- *                in the UI. A green board would spend that meaning on
- *                decoration and leave the verdict with nothing to say.
+ * Green is still ruled out as a board colour: mint means "you played the right
+ * move" everywhere else in the UI, and a green board would spend that meaning
+ * on decoration.
  *
- * The last-move tint is brass for the same reason: highlighting where a piece
- * came from is hardware, not a judgement.
+ * The squares are opaque on purpose. Glass is for the chrome around the board;
+ * a translucent square would let the aurora shift the colour of the position.
  */
 export const BOARD_THEMES: BoardTheme[] = [
+  {
+    id: "walnut",
+    label: "Walnut",
+    light: "#E4D9C4",
+    dark: "#9A7550",
+    fromTint: "rgba(255, 205, 74, 0.5)",
+    toTint: "rgba(255, 205, 74, 0.64)",
+  },
+  {
+    id: "frost",
+    label: "Frost",
+    light: "#E6EAF3",
+    dark: "#7D93B4",
+    fromTint: "rgba(86, 198, 245, 0.42)",
+    toTint: "rgba(158, 226, 255, 0.6)",
+  },
   {
     id: "slate",
     label: "Chalk & slate",
@@ -79,14 +94,6 @@ export const BOARD_THEMES: BoardTheme[] = [
     toTint: "rgba(229, 190, 119, 0.64)",
   },
   {
-    id: "walnut",
-    label: "Walnut",
-    light: "#E4D9C4",
-    dark: "#9A7550",
-    fromTint: "rgba(255, 205, 74, 0.5)",
-    toTint: "rgba(255, 205, 74, 0.64)",
-  },
-  {
     id: "contrast",
     label: "High contrast",
     light: "#FFFFFF",
@@ -99,7 +106,7 @@ export const BOARD_THEMES: BoardTheme[] = [
 export const DEFAULT_THEME = BOARD_THEMES[0];
 
 /**
- * Thickness of the brass bezel (`.board-frame`) on one side, in px.
+ * Thickness of the glass bezel (`.board-frame`) on one side, in px.
  *
  * Boards that are told their exact pixel size have to subtract this from the
  * space they measure, or the frame pushes the board past the box it was

@@ -90,8 +90,7 @@ async def play_move(
         status="queued",
     )
     db.add(job)
-    await db.commit()
-    await db.refresh(job)
+    await db.commit()  # the INSERT returns the id; no refresh needed
     job_id = job.id
 
     redis = get_redis()

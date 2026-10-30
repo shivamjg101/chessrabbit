@@ -37,7 +37,9 @@ from app.routers import (
     play,
     prep,
     puzzles,
+    reports,
     studies,
+    tablebase,
     training,
     users,
 )
@@ -281,9 +283,11 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(accounts.router)
 app.include_router(games.router)
+app.include_router(reports.router)
 app.include_router(studies.router)
 app.include_router(analysis.router)
 app.include_router(explorer.router)
+app.include_router(tablebase.router)
 app.include_router(insights.router)
 app.include_router(training.router)
 app.include_router(puzzles.router)

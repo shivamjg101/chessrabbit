@@ -40,7 +40,10 @@ export interface MoveNode {
   source: MoveSource;
   evalCp?: number | null; // the engine's score when the branch was made
   comment?: string;
+  /** The move assessment: !, ?, !!, ??, !?, ?!, □ or ⨀. See lib/nags.ts. */
   nag?: number;
+  /** Position assessments and observations: ±, ∞, N, ↑, → and the rest. */
+  nags?: number[];
 }
 
 export interface MoveTree {
@@ -276,7 +279,7 @@ export function addMove(
 export function annotate(
   tree: MoveTree,
   id: NodeId,
-  fields: { comment?: string; nag?: number }
+  fields: { comment?: string; nag?: number; nags?: number[] }
 ): MoveTree {
   const n = tree.nodes.get(id);
   if (!n) return tree;
@@ -430,4 +433,74 @@ export function promoteToMainline(tree: MoveTree, id: NodeId): MoveTree {
 export function canPromoteToMainline(tree: MoveTree, id: NodeId): boolean {
   const n = tree.nodes.get(id);
   return !tree.locked && !!n && n.parent !== null && !n.mainline;
+}
+
+/** Drop everything played after this position, keeping the position itself. */
+export function truncateAfter(tree: MoveTree, id: NodeId): MoveTree {
+  const n = tree.nodes.get(id);
+  if (!n) return tree;
+  let cur = tree;
+  // Back to front, so deleting one child never shifts the next one's slot.
+  for (const cid of [...n.children].reverse()) cur = deleteSubtree(cur, cid).tree;
+  return cur;
+}
+
+/**
+ * Every comment, mark and drawing taken off, the moves left alone.
+ *
+ * What "remove annotations" does in a database program before a game is
+ * shared as bare moves, or re-annotated from scratch.
+ */
+export function stripAnnotations(tree: MoveTree): MoveTree {
+  const nodes = new Map(tree.nodes);
+  for (const [id, n] of nodes) {
+    if (n.comment || n.nag != null || n.nags?.length) {
+      nodes.set(id, { ...n, comment: undefined, nag: undefined, nags: undefined });
+    }
+  }
+  return { ...tree, nodes };
+}
+
+/**
+ * Pour `other` into `tree`: every line of it played from the same start, the
+ * moves `tree` already has reused, the ones it lacks added as variations.
+ *
+ * This is how a pile of games becomes one opening tree - ChessBase calls it
+ * merging games. Annotations travel with the moves, but never overwrite one
+ * already there: the tree being merged into is the one whose author you are.
+ *
+ * Both must stand on the same position; a game from another start is not a
+ * line of this tree, and is refused by returning `tree` unchanged.
+ */
+export function mergeTree(tree: MoveTree, other: MoveTree): MoveTree {
+  const ownRoot = tree.nodes.get(tree.root);
+  const theirRoot = other.nodes.get(other.root);
+  if (!ownRoot || !theirRoot) return tree;
+  if (ownRoot.fen.split(" ").slice(0, 4).join(" ") !== theirRoot.fen.split(" ").slice(0, 4).join(" ")) {
+    return tree;
+  }
+
+  let out = tree;
+  // Pairs of (their node, our node standing on the same position).
+  const stack: [NodeId, NodeId][] = [[other.root, tree.root]];
+  while (stack.length) {
+    const [theirs, ours] = stack.pop()!;
+    const from = other.nodes.get(theirs);
+    if (!from) continue;
+    for (const cid of from.children) {
+      const child = other.nodes.get(cid);
+      if (!child) continue;
+      const r = addMove(out, ours, child.san, { source: "user" });
+      if (r.id === ours) continue; // not a legal move here after all
+      out = r.tree;
+      const landed = out.nodes.get(r.id)!;
+      const fields: { comment?: string; nag?: number; nags?: number[] } = {};
+      if (!landed.comment && child.comment) fields.comment = child.comment;
+      if (landed.nag == null && child.nag != null) fields.nag = child.nag;
+      if (!landed.nags?.length && child.nags?.length) fields.nags = child.nags;
+      if (Object.keys(fields).length) out = annotate(out, r.id, fields);
+      stack.push([cid, r.id]);
+    }
+  }
+  return out;
 }

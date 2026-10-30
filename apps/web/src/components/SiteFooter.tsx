@@ -5,8 +5,8 @@ import Link from "next/link";
 /** Public navigation and engine attribution. */
 export default function SiteFooter() {
   return (
-    <footer className="border-t border-ivory/[0.07] px-4 py-6">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
+    <footer className="px-4 pb-6">
+      <div className="glass mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-5 py-4 text-xs text-muted">
         <span>© {new Date().getFullYear()} ChessRabbit</span>
         <nav className="flex flex-wrap gap-x-4 gap-y-1">
           <Link href="/download" className="hover:text-ink hover:underline">

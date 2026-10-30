@@ -8,6 +8,7 @@ import {
   createTree,
   mainlinePath,
 } from "@/lib/moveTree";
+import { NAG_FOR_SUFFIX, SUFFIX_FOR_NAG, isMoveNag } from "@/lib/nags";
 
 /**
  * PGN movetext with variations, in both directions.
@@ -25,24 +26,6 @@ import {
  * a repertoire PGN into position cards, so the two agree on what a variation
  * means.
  */
-
-/** Suffix annotations, and the NAG each one stands for. */
-const NAG_FOR_SUFFIX: Record<string, number> = {
-  "!": 1,
-  "?": 2,
-  "!!": 3,
-  "??": 4,
-  "!?": 5,
-  "?!": 6,
-};
-const SUFFIX_FOR_NAG: Record<number, string> = {
-  1: "!",
-  2: "?",
-  3: "!!",
-  4: "??",
-  5: "!?",
-  6: "?!",
-};
 
 /**
  * One movetext token: a comment, a NAG, a bracket, a move number, a result, or
@@ -115,7 +98,7 @@ export function parsePgn(pgn: string, startFen?: string): ParsedPgn {
       continue;
     }
     if (head === "$") {
-      if (cur !== ROOT) tree = annotate(tree, cur, { nag: parseInt(tok.slice(1), 10) });
+      if (cur !== ROOT) tree = addNag(tree, cur, parseInt(tok.slice(1), 10));
       continue;
     }
     // Move numbers, results and `;` remarks carry nothing the tree needs.
@@ -138,6 +121,54 @@ export function parsePgn(pgn: string, startFen?: string): ParsedPgn {
   // Only an actual game locks its main line. An empty PGN is a blank board,
   // and a blank board is something you are still allowed to build a game on.
   return { tree: { ...tree, locked: mainlinePath(tree).length > 0 }, headers };
+}
+
+/**
+ * File a NAG on a move. A move assessment takes the move's one `nag` slot; a
+ * position assessment or observation joins `nags`, once. See lib/nags.ts.
+ */
+function addNag(tree: MoveTree, id: NodeId, nag: number): MoveTree {
+  if (!Number.isFinite(nag) || nag <= 0 || nag > 255) return tree;
+  if (isMoveNag(nag)) return annotate(tree, id, { nag });
+  const have = tree.nodes.get(id)?.nags ?? [];
+  return have.includes(nag) ? tree : annotate(tree, id, { nags: [...have, nag] });
+}
+
+/**
+ * Cut a file holding many games into one string per game.
+ *
+ * A game starts at a tag section that follows movetext - which is how every
+ * multi-game file is laid out, ChessBase's and Lichess's exports included.
+ * Brackets inside comments are skipped while scanning, so a comment that
+ * happens to contain `[Event` does not split a game in half.
+ */
+export function splitPgnGames(text: string): string[] {
+  const games: string[] = [];
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  let current: string[] = [];
+  let sawMoves = false;
+  let inComment = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isTag = !inComment && /^\[\s*\w+\s*"/.test(trimmed);
+    if (isTag && sawMoves) {
+      if (current.join("").trim()) games.push(current.join("\n").trim());
+      current = [];
+      sawMoves = false;
+    }
+    current.push(line);
+    if (!isTag && trimmed) {
+      sawMoves = true;
+      // Track whether a brace comment is still open at the end of the line.
+      for (const ch of trimmed) {
+        if (ch === "{") inComment = true;
+        else if (ch === "}") inComment = false;
+      }
+    }
+  }
+  if (current.join("").trim()) games.push(current.join("\n").trim());
+  return games;
 }
 
 /* ------------------------------------------------------------------ *
@@ -231,7 +262,12 @@ function lineText(tree: MoveTree, first: NodeId, forced: boolean, offset: number
   while (cur !== undefined) {
     const n = tree.nodes.get(cur);
     if (!n) break;
-    out.push(number(n.ply + offset, needNum) + n.san + (SUFFIX_FOR_NAG[n.nag ?? 0] ?? ""));
+    const suffix = SUFFIX_FOR_NAG[n.nag ?? 0];
+    out.push(number(n.ply + offset, needNum) + n.san + (suffix ?? ""));
+    // A move mark with no suffix spelling (□, ⨀), then the position and
+    // observation glyphs - each as `$n`, which every reader understands.
+    if (n.nag != null && !suffix) out.push(`$${n.nag}`);
+    for (const g of n.nags ?? []) out.push(`$${g}`);
     needNum = false;
 
     if (n.comment) {

@@ -10,26 +10,60 @@ import logging
 import os
 import shutil
 import subprocess
+import threading
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 
 log = logging.getLogger(__name__)
 
 
-class _WindowsPipe:
-    """Thread-backed pipes also work on psycopg's Windows selector loop."""
+class _WindowsReader:
+    """
+    Thread-backed pipes also work on psycopg's Windows selector loop.
+
+    One reader thread per engine feeds a queue. A thread-pool hop per line cost
+    more than the line itself during a search, and a read abandoned by a
+    timeout kept running and swallowed the line it was waiting for.
+    """
 
     def __init__(self, pipe):
-        self.pipe = pipe
+        loop = asyncio.get_running_loop()
+        self._lines: asyncio.Queue[bytes] = asyncio.Queue()
+
+        def pump():
+            with pipe:
+                while True:
+                    try:
+                        raw = pipe.readline()
+                    except (OSError, ValueError):
+                        raw = b""
+                    try:
+                        loop.call_soon_threadsafe(self._lines.put_nowait, raw)
+                    except RuntimeError:  # the event loop has closed
+                        return
+                    if not raw:
+                        return
+
+        threading.Thread(target=pump, name="uci-reader", daemon=True).start()
 
     async def readline(self):
-        return await asyncio.to_thread(self.pipe.readline)
+        raw = await self._lines.get()
+        if not raw:
+            self._lines.put_nowait(raw)  # stay at EOF for any later reader
+        return raw
+
+
+class _WindowsWriter:
+    def __init__(self, pipe):
+        self.pipe = pipe
 
     def write(self, data):
         self.pipe.write(data)
 
     async def drain(self):
-        await asyncio.to_thread(self.pipe.flush)
+        # A UCI command is a few dozen bytes into a pipe the engine reads
+        # continuously, so flushing inline is cheaper than a thread hop.
+        self.pipe.flush()
 
 
 class _WindowsProcess:
@@ -38,8 +72,8 @@ class _WindowsProcess:
             [binary, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW,
         )
-        self.stdin = _WindowsPipe(self.process.stdin)
-        self.stdout = _WindowsPipe(self.process.stdout)
+        self.stdin = _WindowsWriter(self.process.stdin)
+        self.stdout = _WindowsReader(self.process.stdout)
 
     @property
     def returncode(self):
@@ -47,8 +81,14 @@ class _WindowsProcess:
 
     async def wait(self):
         code = await asyncio.to_thread(self.process.wait)
-        self.process.stdin.close()
-        self.process.stdout.close()
+        # Closing stdin flushes whatever was still buffered for it - a "quit"
+        # sent to an engine that had already died. On Windows that flush
+        # fails with EINVAL, not BrokenPipeError. The reader thread closes
+        # stdout itself once it reaches EOF.
+        try:
+            self.process.stdin.close()
+        except OSError:
+            pass
         return code
 
     def kill(self):
@@ -192,6 +232,11 @@ class StockfishEngine:
         self.proc: asyncio.subprocess.Process | _WindowsProcess | None = None
         self.version: str = "unknown"
         self._lock = asyncio.Lock()
+        self._sent_options: dict[str, str] = {}
+        # True from "go" until its "bestmove" has been read. A caller that stops
+        # iterating early leaves the search running, and its output would
+        # otherwise answer the next request.
+        self._searching = False
 
     # ---------- process lifecycle ----------
 
@@ -204,6 +249,8 @@ class StockfishEngine:
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
             )
         self.supported_options.clear()
+        self._sent_options.clear()
+        self._searching = False
         await self._send("uci")
         while True:
             line = await asyncio.wait_for(self._readline(), timeout=30)
@@ -230,7 +277,10 @@ class StockfishEngine:
             try:
                 await self._send("quit")
                 await asyncio.wait_for(self.proc.wait(), timeout=5)
-            except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError):
+            # OSError, not just BrokenPipeError/ConnectionResetError: writing
+            # to a dead engine's pipe on Windows is EINVAL, which escaped here
+            # and replaced "Engine exited during analysis" with a raw OSError.
+            except (asyncio.TimeoutError, OSError):
                 self.proc.kill()
                 await self.proc.wait()
         self.proc = None
@@ -257,9 +307,12 @@ class StockfishEngine:
 
     async def set_option(self, name: str, value) -> None:
         if name in self.supported_options:
-            if isinstance(value, bool):
-                value = str(value).lower()
+            value = str(value).lower() if isinstance(value, bool) else str(value)
+            # Options are re-applied before every search; only changes go out.
+            if self._sent_options.get(name) == value:
+                return
             await self._send(f"setoption name {name} value {value}")
+            self._sent_options[name] = value
 
     async def _readline(self) -> str | None:
         if not self.proc or not self.proc.stdout:
@@ -277,6 +330,26 @@ class StockfishEngine:
                 raise RuntimeError("Engine died waiting for readyok")
             if line.strip() == "readyok":
                 return
+
+    async def _finish_abandoned_search(self) -> None:
+        """Stop a search nobody read to the end and discard its output."""
+        try:
+            await self._send("stop")
+            while (line := await asyncio.wait_for(self._readline(), timeout=10)) is not None:
+                if line.startswith("bestmove"):
+                    self._searching = False
+                    return
+        except (asyncio.TimeoutError, OSError, RuntimeError):
+            pass
+        await self.restart()
+
+    async def _stop_when_set(self, stop_event: asyncio.Event) -> None:
+        """Send "stop" the moment the caller gives up, not at the next output line."""
+        await stop_event.wait()
+        try:
+            await self._send("stop")
+        except (OSError, RuntimeError):
+            pass  # the engine is gone; the read loop reports that
 
     # ---------- analysis ----------
 
@@ -300,13 +373,17 @@ class StockfishEngine:
         async with self._lock:
             if not self.alive:
                 await self.restart()
+            if self._searching:
+                await self._finish_abandoned_search()
 
             await self.set_option("MultiPV", max(1, multipv))
             # Always set Skill Level so a weakened play move never leaks into the
             # next full-strength analysis on this reused engine (20 = full).
             await self.set_option("Skill Level", max(0, min(20, skill)))
-            await self._send("ucinewgame")
-            await self._ready()
+            # No "ucinewgame" + "isready" per search: ucinewgame empties the
+            # hash table, so every position started cold although the next one
+            # on the board shares most of its tree with the last. Commands are
+            # processed in order, so nothing here needs a readyok round trip.
             await self._send(f"position fen {fen}")
 
             if infinite:
@@ -315,35 +392,39 @@ class StockfishEngine:
                 await self._send(f"go depth {depth} movetime {movetime_ms}")
             else:
                 await self._send(f"go depth {depth}")
+            self._searching = True
 
-            stopped = False
-            while True:
-                if stop_event is not None and stop_event.is_set() and not stopped:
-                    await self._send("stop")
-                    stopped = True
+            stopper = asyncio.create_task(self._stop_when_set(stop_event)) if stop_event else None
+            try:
+                while True:
+                    try:
+                        line = await asyncio.wait_for(self._readline(), timeout=120)
+                    except asyncio.TimeoutError:
+                        log.error("Engine read timeout; killing process")
+                        await self.close()
+                        raise RuntimeError("Engine timed out during analysis")
 
-                try:
-                    line = await asyncio.wait_for(self._readline(), timeout=120)
-                except asyncio.TimeoutError:
-                    log.error("Engine read timeout; killing process")
-                    await self.close()
-                    raise RuntimeError("Engine timed out during analysis")
+                    if line is None:
+                        log.error("Engine EOF; restarting")
+                        await self.close()
+                        raise RuntimeError("Engine exited during analysis")
 
-                if line is None:
-                    log.error("Engine EOF; restarting")
-                    await self.close()
-                    raise RuntimeError("Engine exited during analysis")
+                    if line.startswith("bestmove"):
+                        self._searching = False
+                        if stopper:
+                            stopper.cancel()
+                        parts = line.split()
+                        yield {"type": "bestmove", "move": parts[1] if len(parts) > 1 else None}
+                        return
 
-                if line.startswith("bestmove"):
-                    parts = line.split()
-                    yield {"type": "bestmove", "move": parts[1] if len(parts) > 1 else None}
-                    return
-
-                ev = parse_info_line(line)
-                if ev is not None:
-                    if on_line:
-                        on_line(ev)
-                    yield ev
+                    ev = parse_info_line(line)
+                    if ev is not None:
+                        if on_line:
+                            on_line(ev)
+                        yield ev
+            finally:
+                if stopper:
+                    stopper.cancel()
 
 
 class EnginePool:
@@ -359,10 +440,15 @@ class EnginePool:
         self._engines: list[StockfishEngine] = []
 
     async def start(self) -> None:
-        for _ in range(self.size):
-            eng = StockfishEngine(threads=self.threads, hash_mb=self.hash_mb, **self.engine_kwargs)
-            self._engines.append(eng)
-            await eng.start()
+        engines = [StockfishEngine(threads=self.threads, hash_mb=self.hash_mb, **self.engine_kwargs)
+                   for _ in range(self.size)]
+        self._engines.extend(engines)
+        # Side by side: each process spends most of its startup loading its
+        # network, so a second one need not add to the app's startup time.
+        for result in await asyncio.gather(*(eng.start() for eng in engines), return_exceptions=True):
+            if isinstance(result, BaseException):
+                raise result
+        for eng in engines:
             await self._queue.put(eng)
         log.info("Engine pool started with %d processes", self.size)
 

@@ -18,7 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
@@ -286,10 +286,29 @@ class Study(Base):
     # credential, so it is minted unguessable at creation - see the migration.
     visibility: Mapped[str] = mapped_column(Text, nullable=False, default="private")
     slug: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    # Free-text labels a public study is found by. See migration 017.
+    topics: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    cloned_from: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("studies.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class StudyLike(Base):
+    """One reader's star on a study. The count is what the public list sorts by."""
+
+    __tablename__ = "study_likes"
+
+    study_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("studies.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class StudyChapter(Base):
@@ -305,6 +324,11 @@ class StudyChapter(Base):
     pgn: Mapped[str] = mapped_column(Text, nullable=False, default="")
     starting_fen: Mapped[str] = mapped_column(Text, nullable=False)
     orientation: Mapped[str] = mapped_column(Text, nullable=False, default="white")
+    # normal | lesson | conceal - how a reader meets the moves. Migration 017.
+    mode: Mapped[str] = mapped_column(Text, nullable=False, default="normal")
+    hide_engine: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # PGN tag pairs, written out as tags by the export.
+    tags: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     # Bumped on every accepted write; a write quoting a stale one is refused.
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

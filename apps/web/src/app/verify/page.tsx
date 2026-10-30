@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Wordmark from "@/components/Wordmark";
 import { API_URL } from "@/lib/api";
 
 function VerifyInner() {
@@ -47,7 +48,8 @@ function VerifyInner() {
 export default function VerifyPage() {
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-4 text-center">
+      <div className="card w-full max-w-sm animate-rise space-y-4 p-7 text-center">
+        <Wordmark href="/" className="mb-3" />
         <h1 className="font-display text-3xl leading-none">Email verification</h1>
         <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
           <VerifyInner />

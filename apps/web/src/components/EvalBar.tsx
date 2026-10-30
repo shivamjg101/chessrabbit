@@ -23,7 +23,7 @@ export default function EvalBar({ pct, text, whiteAhead, flipped, height }: Prop
 
   return (
     <div
-      className="relative w-5 shrink-0 overflow-hidden rounded-lg bg-ebony shadow-edge ring-1 ring-ivory/15"
+      className="relative w-5 shrink-0 overflow-hidden rounded-full bg-ebony/80 shadow-card ring-1 ring-ivory/20"
       style={{ height: height || undefined }}
       title={`Evaluation ${text}`}
       aria-label={`Evaluation ${text}`}
@@ -35,7 +35,7 @@ export default function EvalBar({ pct, text, whiteAhead, flipped, height }: Prop
         style={{ height: `${pct}%` }}
       />
       {/* Midpoint tick - equal position at a glance */}
-      <div className="absolute inset-x-0 top-1/2 h-px bg-accent/40" />
+      <div className="absolute inset-x-0 top-1/2 h-px bg-brass/60" />
       <span
         className={`absolute inset-x-0 text-[9px] leading-none font-mono font-bold text-center
                     ${labelAtBottom ? "bottom-1" : "top-1"}

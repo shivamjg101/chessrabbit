@@ -274,7 +274,7 @@ export default function PuzzlesPage() {
 
   return (
     <div className="min-h-screen p-4 max-w-5xl mx-auto">
-      <header className="flex items-center gap-3 mb-4 flex-wrap">
+      <header className="glass relative z-30 mb-5 flex flex-wrap items-center gap-3 rounded-2xl px-3 py-2.5">
         <Link href="/app" className="btn">← Board</Link>
         <Link href="/train" className="btn">♞ Repertoire</Link>
         <h1 className="font-display text-xl">Puzzles</h1>
@@ -308,18 +308,19 @@ export default function PuzzlesPage() {
       </header>
 
       {/* Mode tabs */}
-      <div className="flex gap-1 mb-3 text-sm">
-        {(["practice", "rush"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => switchMode(m)}
-            className={`px-3 py-1 rounded ${
-              mode === m ? "bg-accent text-black font-semibold" : "bg-panelAlt text-muted hover:text-ink"
-            }`}
-          >
-            {m === "practice" ? "Practice" : "Puzzle Rush"}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <div className="seg">
+          {(["practice", "rush"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => switchMode(m)}
+              aria-pressed={mode === m}
+              className={`seg-item ${mode === m ? "seg-item-on" : ""}`}
+            >
+              {m === "practice" ? "Practice" : "Puzzle Rush"}
+            </button>
+          ))}
+        </div>
         {mode === "practice" && themes.length > 0 && (
           <select
             className="input text-sm ml-2 w-48"
@@ -363,10 +364,10 @@ export default function PuzzlesPage() {
         <aside className="flex-1 space-y-3">
           {/* Rush start / game-over card */}
           {mode === "rush" && !rushActive && (
-            <div className="bg-panelAlt rounded p-6 text-center space-y-3">
+            <div className="card p-6 text-center space-y-3">
               {rushResult !== null ? (
                 <>
-                  <p className="text-2xl font-bold text-accent">Rush over!</p>
+                  <p className="font-display text-2xl text-ink">Rush over!</p>
                   <p className="text-lg">
                     Score <span className="font-mono font-bold">{rushResult}</span>
                   </p>
@@ -389,7 +390,7 @@ export default function PuzzlesPage() {
 
           {/* Prompt while solving (both modes) */}
           {showBoard && solving && (
-            <div className="bg-panelAlt rounded p-4">
+            <div className="card p-4">
               <p className="text-lg font-semibold flex items-center gap-2">
                 <span
                   className={`w-4 h-4 rounded-full border border-ivory/40 ${
@@ -406,7 +407,7 @@ export default function PuzzlesPage() {
 
           {/* Rush verdict flash (no reveal, auto-advances) */}
           {mode === "rush" && rushActive && (status === "solved" || status === "failed") && (
-            <div className={`rounded p-4 ${status === "solved" ? "bg-accent/20" : "bg-bad/20"}`}>
+            <div className={`rounded-md p-4 ${status === "solved" ? "bg-accent/20" : "bg-bad/20"}`}>
               <p className="text-lg font-semibold">
                 {status === "solved" ? "✓ Correct" : "✗ Strike"}
               </p>
@@ -416,7 +417,7 @@ export default function PuzzlesPage() {
 
           {/* Practice: solved (celebration; no rating line on a retry) */}
           {mode === "practice" && status === "solved" && (
-            <div className="bg-accent/20 rounded p-4">
+            <div className="bg-accent/20 rounded-md p-4">
               <p className="text-lg font-semibold text-accent">✓ Solved!</p>
               {feedback ? (
                 <RatingLine feedback={feedback} />
@@ -430,7 +431,7 @@ export default function PuzzlesPage() {
 
           {/* Practice: failed -> reveal the move, offer retry / show solution */}
           {mode === "practice" && status === "failed" && (
-            <div className="bg-bad/20 rounded p-4 space-y-2">
+            <div className="bg-bad/20 rounded-md p-4 space-y-2">
               <p className="text-lg font-semibold text-bad">✗ Not quite</p>
               {expectedSan && (
                 <p className="text-sm">
@@ -447,7 +448,7 @@ export default function PuzzlesPage() {
 
           {/* Practice: solution playback */}
           {mode === "practice" && status === "showing" && (
-            <div className="bg-panelAlt rounded p-4">
+            <div className="card p-4">
               <p className="text-lg font-semibold">Solution</p>
               <p className="text-xs text-muted mt-1 animate-pulse">
                 Playing the winning line…
@@ -455,7 +456,7 @@ export default function PuzzlesPage() {
             </div>
           )}
           {mode === "practice" && status === "shown" && (
-            <div className="bg-panelAlt rounded p-4 space-y-2">
+            <div className="card p-4 space-y-2">
               <p className="text-lg font-semibold">That&apos;s the solution</p>
               <button className="btn w-full" onClick={retryPuzzle}>↺ Try it yourself</button>
             </div>
@@ -471,17 +472,17 @@ export default function PuzzlesPage() {
           {mode === "practice" &&
             puzzle &&
             (status === "solved" || status === "failed" || status === "shown") && (
-            <div className="bg-panelAlt rounded p-3 text-xs text-muted space-y-1">
+            <div className="card p-3 text-xs text-muted space-y-1">
               <div>Puzzle rating <span className="text-ink font-mono">{puzzle.rating}</span></div>
               {puzzle.themes.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {puzzle.themes.map((t) => (
-                    <span key={t} className="bg-ivory/5 rounded px-1.5 py-0.5">{t}</span>
+                    <span key={t} className="bg-ivory/5 rounded-md px-1.5 py-0.5">{t}</span>
                   ))}
                 </div>
               )}
               {puzzle.game_url && (
-                <a href={puzzle.game_url} target="_blank" rel="noreferrer" className="text-accent hover:underline inline-block">
+                <a href={puzzle.game_url} target="_blank" rel="noreferrer" className="text-brassLit hover:underline inline-block">
                   From this Lichess game ↗
                 </a>
               )}

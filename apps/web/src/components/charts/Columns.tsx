@@ -69,11 +69,11 @@ export default function Columns({
         {mode === "dot" && (
           <>
             <span className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-ivory/[0.09]" />
-            <span className="pointer-events-none absolute left-0 top-0 -translate-y-1/2 bg-panel px-1 font-mono text-[10px] text-faint">
+            <span className="pointer-events-none absolute left-0 top-0 -translate-y-1/2 rounded-md bg-night/60 px-1 font-mono text-[10px] text-faint">
               {max}
               {unit}
             </span>
-            <span className="pointer-events-none absolute bottom-0 left-0 translate-y-1/2 bg-panel px-1 font-mono text-[10px] text-faint">
+            <span className="pointer-events-none absolute bottom-0 left-0 translate-y-1/2 rounded-md bg-night/60 px-1 font-mono text-[10px] text-faint">
               {floor}
               {unit}
             </span>

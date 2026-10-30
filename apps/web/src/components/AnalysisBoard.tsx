@@ -10,7 +10,15 @@ import { usePositionEvals } from "@/hooks/usePositionEvals";
 import { useShapeDrawing } from "@/hooks/useShapeDrawing";
 import { useSquareSize } from "@/hooks/useSquareSize";
 import Link from "next/link";
-import { Annotation, api, ApiError, ExplorerMove, ExplorerScope, ReviewSummary } from "@/lib/api";
+import {
+  Annotation,
+  api,
+  ApiError,
+  ChapterMode,
+  ExplorerMove,
+  ExplorerScope,
+  ReviewSummary,
+} from "@/lib/api";
 import { CLASS_META, headline } from "@/lib/classification";
 import { bestSanAt, explainMove, formatCp, liveVerdicts, sanLine } from "@/lib/liveEval";
 import { endOfLine, lineTo, nodeAt } from "@/lib/moveTree";
@@ -28,6 +36,8 @@ import PlayerPlate, { GamePlayers, scoreOf } from "@/components/PlayerPlate";
 import MoveList from "@/components/MoveList";
 import EnginePane from "@/components/EnginePane";
 import ExplorerPane from "@/components/ExplorerPane";
+import BoardTools from "@/components/BoardTools";
+import TablebasePane, { TABLEBASE_PIECES, pieceCount } from "@/components/TablebasePane";
 
 /** Both rails of the wooden surround the board is seated in. */
 const FRAME = 2 * BOARD_FRAME;
@@ -73,9 +83,10 @@ async function copyText(text: string): Promise<boolean> {
 /**
  * Holding an arrow key walks the game faster than any of this can answer.
  * Waiting for the cursor to settle turns a 40-request burst into one request,
- * and spares the engine 40 abandoned searches.
+ * and spares the engine 40 abandoned searches. Key repeat fires every ~33ms,
+ * so this stays well above it while a single click waits as little as possible.
  */
-const SETTLE_MS = 220;
+const SETTLE_MS = 120;
 
 /** Positions keep coming back to the same openings; remembering them makes
     stepping backwards through a game instant. */
@@ -102,20 +113,27 @@ const ARROW_COLOR = "#8B7BE8";
 
 type Tab = "report" | "moves" | "engine" | "book" | "notes";
 
+/**
+ * Notes sits on a game's board too: annotating a game you played - a comment
+ * on the move that lost it, a "±" where it turned - is half of what a
+ * database program is for. It writes into the same per-game tree the lines
+ * you explore are kept in, and leaves with them in the PGN.
+ */
 const TABS: { id: Tab; label: string }[] = [
   { id: "report", label: "Report" },
   { id: "moves", label: "Moves" },
+  { id: "notes", label: "Notes" },
   { id: "engine", label: "Engine" },
   { id: "book", label: "Book" },
 ];
 
 /**
  * A study has no game review to show — nothing was played and nothing was
- * scored — so Notes takes the slot, which is what the tab is for there anyway.
+ * scored — so Notes takes the first slot, which is what the tab is for there.
  */
 const STUDY_TABS: { id: Tab; label: string }[] = [
   { id: "notes", label: "Notes" },
-  ...TABS.filter((t) => t.id !== "report"),
+  ...TABS.filter((t) => t.id !== "report" && t.id !== "notes"),
 ];
 
 /**
@@ -137,6 +155,13 @@ export interface StudyMode {
   onPersist?: (movetext: string) => void;
   /** What the panel header says about the last save. */
   status?: string | null;
+  /**
+   * How the chapter is read. "conceal" hides each move until a reader steps
+   * onto it; the author, who wrote them, always sees everything.
+   */
+  mode?: ChapterMode;
+  /** The author asks readers to work it out without the engine. */
+  hideEngine?: boolean;
 }
 
 interface Props {
@@ -216,7 +241,15 @@ export default function AnalysisBoard({
   const settings = useSettings();
   const { evalAt, record: recordEval } = usePositionEvals(settings.engine);
   const skin = useBoardTheme();
-  const autoAnalyse = settings.autoAnalyse;
+
+  /**
+   * A chapter whose author asked for no engine is read without one: no bar,
+   * no lines, no searches started behind the reader's back. Only for
+   * readers - whoever writes the chapter still needs the engine to check it.
+   */
+  const engineAllowed = !(study?.hideEngine && study.readOnly);
+  const autoAnalyse = settings.autoAnalyse && engineAllowed;
+  const concealing = study?.mode === "conceal" && !!study.readOnly;
 
   // The board is sized to the space it is given, so it fills the viewport
   // height on a desktop instead of sitting in a fixed-width box. The plates
@@ -618,6 +651,8 @@ export default function AnalysisBoard({
   // ever thrown away to make room for it.
   const onDrop = mt.play;
 
+  const endgame = pieceCount(fen) <= TABLEBASE_PIECES;
+
   const { onSquareClick, squareStyles } = useClickToMove(fen, onDrop);
 
   // Same reason as `boardArrows`: one object per set of styles, not per render.
@@ -739,13 +774,13 @@ export default function AnalysisBoard({
           would have the board's own height feed back into the measurement. */}
       <div
         className="w-full h-[calc(100vw_+_76px)] px-3 lg:h-full lg:min-h-0
-                   lg:w-auto lg:min-w-0 lg:flex-1 lg:px-0"
+                   lg:w-auto lg:min-w-0 lg:flex-1 lg:px-3"
       >
         <div
           ref={stageRef}
           className="relative flex h-full w-full items-center justify-center gap-2"
         >
-          {settings.showEvalBar && (
+          {settings.showEvalBar && engineAllowed && (
             <EvalBar
               pct={barPct}
               text={evalText}
@@ -788,6 +823,12 @@ export default function AnalysisBoard({
               >
                 {boardSize > 0 && (
                   <Chessboard
+                    // A new starting position is a new board, not a move. A
+                    // game from a set-up position arrives a moment after the
+                    // board mounted on the opening array, and react-chessboard
+                    // misses that first change: it kept drawing 32 pieces over
+                    // a three-piece endgame until a move was stepped through.
+                    key={nodeAt(mt.tree, mt.tree.root)?.fen}
                     position={fen}
                     boardWidth={boardSize}
                     onPieceDrop={onDrop}
@@ -854,12 +895,13 @@ export default function AnalysisBoard({
       </div>
 
       {/* ---------- Analysis panel ---------- */}
+      {/* A floating pane on a desktop, a bottom sheet on a phone. */}
       <aside
-        className="flex w-full shrink-0 flex-col border-ivory/[0.07] bg-panel/60 backdrop-blur-xl
-                   border-t lg:h-full lg:w-[352px] lg:border-l lg:border-t-0 xl:w-[400px]"
+        className="glass mt-3 flex w-full shrink-0 flex-col rounded-t-3xl lg:my-2 lg:mr-2 lg:mt-2
+                   lg:h-[calc(100%-1rem)] lg:w-[352px] lg:rounded-2xl xl:w-[400px]"
       >
         {/* Header: what you are looking at */}
-        <div className="shrink-0 border-b border-ivory/[0.06] px-3 py-2.5">
+        <div className="shrink-0 border-b border-ivory/[0.08] px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="eyebrow">
               {study ? (study.readOnly ? "Shared study" : "Study") : "Game review"}
@@ -871,8 +913,18 @@ export default function AnalysisBoard({
               <span className="truncate text-[11px] text-muted">{study.status}</span>
             )}
             <span className="ml-auto shrink-0 font-mono text-[11px] text-muted">
-              {onMainline ? mt.cursorPly : "–"}/{history.length}
+              {onMainline ? mt.cursorPly : "–"}/{concealing ? "?" : history.length}
             </span>
+            <BoardTools
+              mt={mt}
+              orientation={orientation}
+              label={gameLabel}
+              canEdit={!boardReadOnly}
+              canLoad={!study && gameId == null}
+              gameId={gameId}
+              light={skin.theme.light}
+              dark={skin.theme.dark}
+            />
           </div>
           <p className="mt-0.5 truncate text-sm font-medium" title={gameLabel}>
             {gameLabel ?? "Free analysis board"}
@@ -890,7 +942,7 @@ export default function AnalysisBoard({
             nothing. It gives up its own height first. */}
         {!study && (
           <div
-            className="shrink-0 space-y-3 overflow-y-auto border-b border-ivory/[0.06]
+            className="shrink-0 space-y-3 overflow-y-auto border-b border-ivory/[0.08]
                        px-3 py-3 lg:max-h-[42%]"
           >
             <VerdictPlate
@@ -918,28 +970,32 @@ export default function AnalysisBoard({
         {/* Tabs */}
         <div className="shrink-0 px-3 pt-2.5">
           <div className="seg w-full justify-between">
-            {(study ? STUDY_TABS : TABS).map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                aria-pressed={tab === t.id}
-                className={`seg-item flex-1 text-center text-xs ${
-                  tab === t.id ? "seg-item-on" : ""
-                }`}
-              >
-                {t.label}
-                {t.id === "moves" && history.length > 0 && (
-                  <span className="ml-1 text-[10px] opacity-60">{history.length}</span>
-                )}
-              </button>
-            ))}
+            {(study ? STUDY_TABS : TABS)
+              .filter((t) => engineAllowed || t.id !== "engine")
+              .map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  aria-pressed={tab === t.id}
+                  className={`seg-item flex-1 text-center text-xs ${
+                    tab === t.id ? "seg-item-on" : ""
+                  }`}
+                >
+                  {/* Past seven pieces the book has nothing left to say, and
+                      the tab answers from the tablebase instead. */}
+                  {t.id === "book" && endgame ? "Endgame" : t.label}
+                  {t.id === "moves" && history.length > 0 && !concealing && (
+                    <span className="ml-1 text-[10px] opacity-60">{history.length}</span>
+                  )}
+                </button>
+              ))}
           </div>
         </div>
 
         {/* Scrolling body */}
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
           {mismatched > 0 && (
-            <div className="mb-3 rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs leading-relaxed">
+            <div className="mb-3 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-xs leading-relaxed">
               {mismatched} reviewed move{mismatched === 1 ? "" : "s"} in this game
               no longer match the board, so {mismatched === 1 ? "it is" : "they are"}{" "}
               hidden rather than labelled against the wrong move. Re-run the
@@ -948,7 +1004,7 @@ export default function AnalysisBoard({
           )}
 
           {reviewNotice && (
-            <div className="mb-3 flex items-center gap-2 rounded-lg border border-gold/30 bg-gold/10 px-3 py-2 text-xs">
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-xs">
               <span>⏳ {reviewNotice}</span>
 
             </div>
@@ -957,11 +1013,11 @@ export default function AnalysisBoard({
           {/* Off the game, there is no review to show and the coach says
               nothing - so say where you are instead, and offer the way back. */}
           {!onMainline && (
-            <div className="mb-3 flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs">
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-brass/30 bg-brass/10 px-3 py-2 text-xs">
               <span>You&rsquo;re in a line that wasn&rsquo;t played.</span>
               <button
                 onClick={mt.backToGame}
-                className="ml-auto shrink-0 text-accent underline"
+                className="ml-auto shrink-0 text-brassLit underline"
               >
                 Back to the game
               </button>
@@ -975,9 +1031,10 @@ export default function AnalysisBoard({
               comment={mt.comment}
               shapes={mt.shapes}
               nag={mt.node.nag}
+              nags={mt.node.nags}
               readOnly={boardReadOnly}
               onComment={(text) => mt.setComment(cursorId, text)}
-              onNag={(nag) => mt.setNag(cursorId, nag)}
+              onGlyph={(nag) => mt.toggleGlyph(cursorId, nag)}
               onShapes={onShapes}
             />
           )}
@@ -1015,7 +1072,7 @@ export default function AnalysisBoard({
                 <button
                   onClick={copyPgn}
                   disabled={history.length === 0}
-                  className={`ml-auto shrink-0 rounded border px-2 py-0.5 transition-colors
+                  className={`ml-auto shrink-0 rounded-md border px-2 py-0.5 transition-colors
                              disabled:opacity-40 disabled:hover:bg-transparent ${
                                copied === "failed"
                                  ? "border-bad/40 text-bad"
@@ -1036,10 +1093,11 @@ export default function AnalysisBoard({
                 liveByNode={liveByNode}
                 cursorId={cursorId}
                 onSeek={mt.seek}
+                revealPly={concealing ? mt.node.ply : null}
               />
             </div>
           )}
-          {tab === "engine" && (
+          {tab === "engine" && engineAllowed && (
             <EnginePane
               // Only the lines that belong to the position on the board. In
               // the moment after a move they still describe the previous one,
@@ -1056,7 +1114,10 @@ export default function AnalysisBoard({
               onPlayLine={(sans, evalCp) => mt.playLine(sans, { evalCp })}
             />
           )}
-          {tab === "book" && (
+          {tab === "book" && endgame && (
+            <TablebasePane fen={fen} onPlay={(uci) => onDrop(uci.slice(0, 2), uci.slice(2, 4))} />
+          )}
+          {tab === "book" && !endgame && (
             <ExplorerPane
               moves={explorer}
               total={explorerTotal}
@@ -1073,7 +1134,7 @@ export default function AnalysisBoard({
 
         {/* Transport controls: pinned to the panel on a desktop, and stuck to
             the bottom of the viewport while scrolling on a phone. */}
-        <div className="sticky bottom-0 shrink-0 border-t border-ivory/[0.06] bg-panel/90 p-2.5 backdrop-blur-xl lg:static lg:bg-transparent lg:backdrop-blur-none">
+        <div className="glass-bar sticky bottom-0 shrink-0 p-2.5 lg:static lg:rounded-b-2xl lg:bg-transparent lg:shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] lg:backdrop-blur-none">
           {hasReview && onMainline && mt.node.children.length > 0 && (
             <button className="btn-go mb-2 w-full text-sm" onClick={mt.next}>
               Next move  →
@@ -1087,14 +1148,14 @@ export default function AnalysisBoard({
               <button
                 onClick={() => mt.nextAlternative(-1)}
                 title="Previous alternative (Alt+↑)"
-                className="ml-auto rounded border border-ivory/10 px-1.5 py-0.5 hover:bg-ivory/10 hover:text-ink"
+                className="ml-auto rounded-md border border-ivory/10 px-1.5 py-0.5 hover:bg-ivory/10 hover:text-ink"
               >
                 ↑
               </button>
               <button
                 onClick={() => mt.nextAlternative(1)}
                 title="Next alternative (Alt+↓)"
-                className="rounded border border-ivory/10 px-1.5 py-0.5 hover:bg-ivory/10 hover:text-ink"
+                className="rounded-md border border-ivory/10 px-1.5 py-0.5 hover:bg-ivory/10 hover:text-ink"
               >
                 ↓
               </button>
@@ -1105,7 +1166,7 @@ export default function AnalysisBoard({
                 <button
                   onClick={mt.promoteLine}
                   title="Make this the main line"
-                  className="rounded border border-ivory/10 px-1.5 py-0.5 hover:bg-accent/20 hover:text-accent"
+                  className="rounded-md border border-ivory/10 px-1.5 py-0.5 hover:bg-accent/20 hover:text-accent"
                 >
                   ★
                 </button>
@@ -1114,7 +1175,7 @@ export default function AnalysisBoard({
                 <button
                   onClick={mt.removeLine}
                   title="Delete this line (Del)"
-                  className="rounded border border-ivory/10 px-1.5 py-0.5 hover:bg-bad/20 hover:text-bad"
+                  className="rounded-md border border-ivory/10 px-1.5 py-0.5 hover:bg-bad/20 hover:text-bad"
                 >
                   ✕
                 </button>
@@ -1122,7 +1183,7 @@ export default function AnalysisBoard({
             </div>
           )}
           <div className="flex items-center gap-2">
-            <div className="flex flex-1 divide-x divide-ivory/10 overflow-hidden rounded-lg border border-ivory/10 bg-ivory/[0.05]">
+            <div className="flex flex-1 divide-x divide-ivory/10 overflow-hidden rounded-xl border border-ivory/10 bg-ivory/[0.05]">
               {[
                 { glyph: "«", title: "Start (↑)", go: mt.toStart },
                 { glyph: "‹", title: "Back (←)", go: mt.back },
@@ -1144,7 +1205,7 @@ export default function AnalysisBoard({
               onClick={flip}
               title="Flip board (f)"
               aria-label="Flip board"
-              className="rounded-lg border border-ivory/10 bg-ivory/[0.05] px-3 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/10 hover:text-ink"
+              className="rounded-xl border border-ivory/10 bg-ivory/[0.05] px-3 py-1.5 text-lg leading-none text-muted transition-colors hover:bg-ivory/10 hover:text-ink"
             >
               ⟳
             </button>

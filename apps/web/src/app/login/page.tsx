@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Wordmark from "@/components/Wordmark";
 import { api, setTokens, ApiError } from "@/lib/api";
 
 export default function LoginPage() {
@@ -28,10 +29,11 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4">
+      <form onSubmit={submit} className="card w-full max-w-sm animate-rise space-y-4 p-7">
+        <Wordmark href="/" className="mb-3" />
         <h1 className="font-display text-3xl leading-none">Sign in</h1>
 
-        {error && <p className="text-sm text-bad">{error}</p>}
+        {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
 
         <input
           className="input"

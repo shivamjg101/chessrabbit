@@ -25,7 +25,7 @@ export default function UsersPage() {
     <input className="input max-w-sm" aria-label="Search accounts" placeholder="Search email or name"
       value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
     {error && <p className="text-bad">{error}</p>}
-    <div className="overflow-auto"><table className="w-full text-left text-sm">
+    <div className="card overflow-auto p-2"><table className="w-full text-left text-sm">
       <thead><tr><th className="p-2">Account</th><th>Games</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>{data?.users.map((user) => <tr key={user.id} className="border-t border-ivory/10">
         <td className="p-2">{user.display_name}<p className="text-xs text-muted">{user.email}</p></td>

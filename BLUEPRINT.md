@@ -24,7 +24,7 @@ Stockfish is included in the standard container. An optional CPU container build
 
 ## Operational limits
 
-The default engine pool has one process per profile. Long reviews can delay live requests; increase workers to reserve an interactive slot. Queue jobs are consumed with BLPOP and are not durable acknowledged jobs; a worker killed after dequeue can strand a job. A graceful failure is reported to the client, but automatic retry/recovery is future work.
+The default engine pool has one process per profile. Long reviews can delay live requests; increase workers to reserve an interactive slot. The desktop app does this for bundled Stockfish, which runs two processes. Queue jobs are consumed with BLPOP and are not durable acknowledged jobs; a worker killed after dequeue can strand a job. A graceful failure is reported to the client, but automatic retry/recovery is future work.
 
 Depth is not comparable across engines. Lc0 requires compatible weights and may hit its time limit before the requested depth. Neural networks, reference games, puzzles and tablebases are optional separate downloads.
 

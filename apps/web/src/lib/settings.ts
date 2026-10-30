@@ -55,7 +55,7 @@ export const DEFAULTS: Settings = {
   // theme changes, change it in both places — this literal is how the board
   // stayed walnut through an entire repalette, because swapping the theme
   // list left this line pointing at the one brown theme still in it.
-  boardTheme: "slate",
+  boardTheme: "walnut",
 };
 
 /** Selectable engine depths and line counts, shared with the settings UI. */

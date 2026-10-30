@@ -233,7 +233,7 @@ export default function ClockDrillPage() {
 
   return (
     <div className="min-h-screen p-4 max-w-5xl mx-auto">
-      <header className="flex items-center gap-3 mb-4 flex-wrap">
+      <header className="glass relative z-30 mb-5 flex flex-wrap items-center gap-3 rounded-2xl px-3 py-2.5">
         <Link href="/train" className="btn">← Training</Link>
         <h1 className="font-display text-xl">Time bank</h1>
         {phase !== "idle" && phase !== "done" && (
@@ -253,7 +253,7 @@ export default function ClockDrillPage() {
       )}
 
       {phase === "idle" && (
-        <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-8 text-center space-y-3 max-w-xl mx-auto">
+        <div className="card p-8 text-center space-y-3 max-w-xl mx-auto">
           <p className="text-2xl font-display">One clock. Ten puzzles.</p>
           <p className="text-muted">
             3:00 for {ROUNDS} puzzles and the difficulties are hidden and wildly
@@ -268,7 +268,7 @@ export default function ClockDrillPage() {
 
       {phase === "done" && (
         <div className="max-w-xl mx-auto space-y-4">
-          <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-6 text-center">
+          <div className="card p-6 text-center">
             <p className="text-2xl font-display">
               {solved} / {ROUNDS} solved
             </p>
@@ -279,7 +279,7 @@ export default function ClockDrillPage() {
             </p>
           </div>
 
-          <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4">
+          <div className="card p-4">
             <table className="w-full text-sm">
               <thead className="text-muted text-xs">
                 <tr>
@@ -304,7 +304,7 @@ export default function ClockDrillPage() {
             </table>
           </div>
 
-          <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4 space-y-1">
+          <div className="card p-4 space-y-1">
             {advice().map((a) => (
               <p key={a} className="text-sm">{a}</p>
             ))}
@@ -333,7 +333,7 @@ export default function ClockDrillPage() {
           </div>
 
           <aside className="flex-1 space-y-3 min-w-[260px]">
-            <div className="bg-panelAlt/60 border border-ivory/5 rounded-xl p-4">
+            <div className="card p-4">
               <p className="text-lg font-semibold flex items-center gap-2">
                 <span
                   className={`w-4 h-4 rounded-full border border-ivory/40 ${
@@ -351,7 +351,7 @@ export default function ClockDrillPage() {
               </p>
             </div>
             {phase === "flash" && lastVerdict !== null && (
-              <div className={`rounded-xl p-3 ${lastVerdict ? "bg-accent/20" : "bg-bad/20"}`}>
+              <div className={`rounded-2xl p-3 ${lastVerdict ? "bg-accent/20" : "bg-bad/20"}`}>
                 <p className="font-semibold">{lastVerdict ? "✓ Solved" : "✗ Missed"} — next…</p>
               </div>
             )}

@@ -46,12 +46,15 @@ def profile_fingerprint(profile: dict, version: str) -> str:
     return f"{profile['id']}:{digest.hexdigest()[:24]}"
 
 
-async def start_profiles(size: int, threads: int, hash_mb: int) -> tuple[dict[str, EnginePool], list[dict]]:
+async def start_profiles(size: int, threads: int, hash_mb: int,
+                         sizes: dict[str, int] | None = None) -> tuple[dict[str, EnginePool], list[dict]]:
+    """`sizes` overrides `size` per profile id without entering its cache identity."""
     pools, catalog = {}, []
     for profile in load_profiles():
         entry = {"id": profile["id"], "name": profile.get("name", profile["id"]),
                  "available": False, "version": None, "cache_key": None}
-        pool = EnginePool(size=max(1, int(profile.get("workers", size))), threads=threads,
+        default = (sizes or {}).get(profile["id"], size)
+        pool = EnginePool(size=max(1, int(profile.get("workers", default))), threads=threads,
                           hash_mb=hash_mb, binary=profile.get("binary"),
                           args=profile.get("args", []), options=profile.get("options", {}))
         try:

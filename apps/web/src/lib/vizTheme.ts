@@ -1,53 +1,55 @@
 /**
  * Chart palettes for Insights, validated rather than eyeballed.
  *
- * Surface is the panel colour (#152438); the app is one ink world, so there is
- * one set of steps, chosen for that surface. Every ΔE and contrast figure below
- * is output from `apps/web/scripts/palette-check.py` - re-run it after touching
- * a colour here OR after changing `panel` in tailwind.config.ts, because the
- * contrast gate is measured against that surface.
+ * Surface is a glass card as it actually renders over the walnut desk
+ * (#2E231B); the app is one dark field, so there is one set of steps, chosen
+ * for that surface. Every ΔE and contrast figure below is output from
+ * `apps/web/scripts/palette-check.py` - re-run it after touching a colour here
+ * OR after changing the glass recipe in globals.css, because the contrast gate
+ * is measured against that surface.
  *
  * ---------------------------------------------------------------------------
  * OUTCOME (win / draw / loss) - a diverging scale, not a categorical one.
  *
- * Win is verdigris and loss is coral, which is the same pairing the rest of the
- * app uses for "right" and "lost", so a result chart reads in the vocabulary
+ * Win is green and loss is terracotta, which is the same pairing the rest of
+ * the app uses for "right" and "lost", so a result chart reads in the vocabulary
  * the drill screens already taught. The catch: any mid-green against any
  * mid-red is nearly one colour under deuteranopia - the two most important
  * colours on the page would be indistinguishable to a red-green colourblind
  * reader.
  *
- * The fix is that WIN AND LOSS ARE SEPARATED BY LIGHTNESS, not by hue: L* 78.5
- * against L* 54.3, which survives greyscale printing too. Do not "correct"
+ * The fix is that WIN AND LOSS ARE SEPARATED BY LIGHTNESS, not by hue: L* 81.7
+ * against L* 52.1, which survives greyscale printing too. Do not "correct"
  * these two steps toward each other - that is precisely the failure this
  * spacing exists to avoid.
  *
  * Two categorical gates fail on this triad by design, because it is diverging:
  *   - the neutral midpoint is below the chroma floor (a diverging midpoint is
  *     required to be neutral, never a hue)
- *   - the light verdigris sits above the categorical lightness band (the band
+ *   - the light green sits above the categorical lightness band (the band
  *     assumes equal-weight slots; the whole point here is unequal lightness)
- * The gates that do apply pass on ALL pairs: CVD ΔE 19.2 (worst, tritan),
- * normal-vision 30.5, contrast ≥ 3:1 (worst 4.06, the loss coral).
+ * The gates that do apply pass on ALL pairs: CVD ΔE 18.4 (worst, tritan),
+ * normal-vision 29.3, contrast ≥ 3:1 (worst 3.68, the terracotta loss).
  *
- * The midpoint is a blue-grey drawn from the ink surfaces rather than a warm
- * taupe: on this ground a warm neutral reads as a fourth hue rather than as the
- * absence of one.
+ * The midpoint is pewter rather than a warm taupe: on walnut a warm neutral
+ * sinks into the timber and reads as part of the desk rather than as a result,
+ * and against terracotta it collapses under protanopia. Pewter is near-neutral
+ * (C* 6.6), so it still reads as the absence of a hue.
  *
  * Even so, outcome is never encoded by colour alone: segments are always in
  * win → draw → loss order, always directly labelled, and always legended.
  * ---------------------------------------------------------------------------
  */
 export const OUTCOME = {
-  win: "#7FD2B6",
-  draw: "#7C8CA6",
-  loss: "#D9584A",
+  win: "#94DBA6",
+  draw: "#8F99A3",
+  loss: "#D4513F",
 } as const;
 
 /**
  * Categorical slots, assigned in this fixed order and never cycled. Passes
- * every gate on the ink surface: lightness band, chroma floor, adjacent CVD
- * (worst ΔE 15.5), normal-vision floor (worst ΔE 18.4), contrast (worst 4.59).
+ * every gate on the glass surface: lightness band, chroma floor, adjacent CVD
+ * (worst ΔE 15.5), normal-vision floor (worst ΔE 18.4), contrast (worst 4.49).
  *
  * The ORDER is the colourblind-safety mechanism, not decoration, and this
  * particular order was found by searching all 720 permutations for the one with
@@ -61,24 +63,24 @@ export const OUTCOME = {
  */
 export const SERIES = [
   "#5AA0E0", // blue
-  "#D9A356", // brass
-  "#35B29B", // verdigris
+  "#D9A356", // amber
+  "#35B29B", // teal
   "#9080E6", // violet
   "#D4688C", // rose
   "#8CB43F", // olive
 ] as const;
 
 /**
- * Single hue, light -> dark, for magnitude (accuracy columns). A verdigris
+ * Single hue, light -> dark, for magnitude (accuracy columns). A mint-teal
  * ramp, so a magnitude chart stays inside the app's vocabulary. Smallest step
  * between neighbours is ΔE 10.4, comfortably above a just-noticeable
- * difference; the darkest step holds 2.48:1 on the panel, which is acceptable
+ * difference; the darkest step holds 2.42:1 on the glass, which is acceptable
  * only because a ramp step is a filled area that is never asked to carry text.
  */
 export const SEQUENTIAL = ["#DEE8E1", "#A9CFC1", "#72B4A0", "#47907D", "#2C6A5C"];
 
-export const AXIS = "#93A6C2";
-export const GRID = "rgba(242,240,234,0.07)";
+export const AXIS = "#CFBEA4";
+export const GRID = "rgba(255,236,208,0.08)";
 
 /** Colour for slot `i`, folding anything past the palette into the last hue. */
 export function seriesColor(i: number): string {

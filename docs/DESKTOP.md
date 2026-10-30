@@ -31,7 +31,7 @@ For step-by-step Leela instructions, see [install Leela Chess Zero](../README.md
 - **Leela Chess Zero:** download a Windows Lc0 package appropriate for your hardware and a compatible network from [the official downloads](https://lczero.org/play/download/). Extract it into a permanent folder. In ChessRabbit, choose **Engines → Add Leela Chess Zero**, select `lc0.exe`, then select the network `.pb.gz` or `.pb`. GPU builds require their matching drivers/runtime libraries; CPU builds also work. The native menu reports startup errors before accepting the engine.
 - **Another UCI engine:** choose **Engines → Add UCI engine** and select its executable. Keep its required files together in a permanent folder.
 
-Open Analysis settings and select the added engine. Live analysis and game reviews use that engine. Playing against the computer uses Stockfish's adjustable strength. Finish or stop current analysis before replacing an engine. If a custom engine moves, add it again from its new location.
+Open Analysis settings and select the added engine. Live analysis and game reviews use that engine. Playing against the computer uses Stockfish's adjustable strength. Bundled Stockfish runs as two processes, one of them kept free of game reviews, so a running review does not hold up live analysis or the computer's replies. Finish or stop current analysis before replacing an engine. If a custom engine moves, add it again from its new location.
 
 ## Local data and updates
 

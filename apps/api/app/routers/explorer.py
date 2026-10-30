@@ -214,28 +214,43 @@ async def search_by_position(
     payload: ExplorerRequest,
     page: int = Query(default=1, ge=1),
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_optional_user),
 ):
-    """Find reference games that reached this exact position (BLUEPRINT 10.3)."""
+    """
+    Find games that reached this exact position (BLUEPRINT 10.3): reference
+    games by default, or with scope="mine" your own - which on a new install,
+    with no reference database loaded, is the only search that finds anything.
+    """
     try:
         validate_fen(payload.fen)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail={"code": "invalid_fen", "message": str(exc)})
 
-    zob = zobrist_of(payload.fen)
+    if payload.scope == "mine":
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"code": "auth_required", "message": "Sign in to search your own games"},
+            )
+        owner, params = "g.owner_id = :uid", {"uid": user.id}
+    else:
+        owner, params = "g.owner_id IS NULL", {}
 
+    # A semi-join rather than a join: a position repeated within one game (a
+    # knight shuffle, a repetition) is one hit, not that game listed twice.
     rows = await db.execute(
         text(
-            """
+            f"""
             SELECT g.id, g.white, g.black, g.white_elo, g.black_elo, g.result,
                    g.event, g.played_on, g.eco, g.opening, g.ply_count
-            FROM game_positions p
-            JOIN games g ON g.id = p.game_id
-            WHERE p.zobrist = :zob AND g.owner_id IS NULL
+            FROM games g
+            WHERE {owner}
+              AND g.id IN (SELECT p.game_id FROM game_positions p WHERE p.zobrist = :zob)
             ORDER BY GREATEST(g.white_elo, g.black_elo) DESC NULLS LAST, g.id DESC
             LIMIT :lim OFFSET :off
             """
         ),
-        {"zob": zob, "lim": PAGE + 1, "off": (page - 1) * PAGE},
+        {"zob": zobrist_of(payload.fen), "lim": PAGE + 1, "off": (page - 1) * PAGE, **params},
     )
     return _paged(list(rows.mappings()), page)
 

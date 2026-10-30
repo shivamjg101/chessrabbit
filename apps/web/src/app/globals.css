@@ -8,9 +8,66 @@
 @tailwind utilities;
 
 @layer base {
-  html,
-  body {
-    background-color: theme("colors.night");
+  /* The palette, as bare RGB channels so Tailwind's opacity modifiers work on
+     every token (`bg-panel/60`, `border-brass/40`). tailwind.config.ts maps
+     each one to a colour name; the rules for using them are written there. */
+  :root {
+    color-scheme: dark;
+
+    --c-night: 22 14 9;
+    --c-panel: 46 31 21;
+    --c-panel-alt: 60 41 28;
+    --c-raise: 80 56 37;
+    --c-line: 106 80 56;
+
+    --c-ink: 248 240 226;
+    --c-muted: 207 190 164;
+    --c-faint: 158 139 114;
+
+    --c-brass: 214 160 92;
+    --c-brass-lit: 241 203 139;
+    --c-copper: 184 106 53;
+
+    --c-accent: 112 197 134;
+    --c-bad: 230 98 80;
+    --c-accent2: 162 144 240;
+    --c-good: 182 225 184;
+    --c-warn: 238 158 70;
+
+    --c-ivory: 248 240 226;
+    --c-ebony: 26 18 12;
+
+    /* Lamplight: the warm white every highlight, edge and sheen is drawn in.
+       Pure white on walnut reads as a cold glare. */
+    --c-glint: 255 236 208;
+    /* The board bezel: darker, redder timber than the desk it sits on. */
+    --c-bezel: 58 36 22;
+
+    /* Glass recipe, shared by every frosted surface. */
+    --glass-fill: linear-gradient(
+      160deg,
+      rgb(var(--c-glint) / 0.11) 0%,
+      rgb(var(--c-glint) / 0.05) 55%,
+      rgb(var(--c-glint) / 0.035) 100%
+    );
+    --glass-edge: rgb(var(--c-glint) / 0.15);
+    --glass-blur: blur(20px) saturate(140%);
+
+    /* Straight-grained walnut. Fractal noise stretched far wider than it is
+       tall gives long, wandering streaks; the colour matrix turns them into
+       translucent near-black, so laid over a brown base they become the darker
+       grain lines of stained timber. Drawn once and tiled, so it costs nothing
+       after the first paint. */
+    --wood-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1100' height='700'><filter id='g' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='0.006 0.11' numOctaves='5' seed='9' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.05  0 0 0 0 0.025  0 0 0 0 0.01  0 0 0 1.1 -0.38'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>");
+    /* The timber under the grain: a stained walnut, a shade lighter towards
+       the top where the lamp falls. */
+    --wood-base: linear-gradient(180deg, rgb(52 33 21), rgb(36 23 14) 60%, rgb(30 19 12));
+  }
+
+  /* On html only. A background on body is painted after negative-z content,
+     so it would cover the desk drawn by body::before. */
+  html {
+    background-color: rgb(var(--c-night));
   }
 
   /* Numbers that change in place (evals, clocks, move counters, SM-2
@@ -21,133 +78,206 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Instrument Serif ships at one weight and a fairly loose default fit. At
-     display sizes it wants to be tightened; at small sizes it should never be
-     used at all, so only the tightening is set here. */
+  /* Display is the body grotesque, set heavier and tighter. Archivo is a
+     variable font, so this costs no extra download. */
   .font-display {
-    letter-spacing: -0.015em;
+    font-weight: 620;
+    letter-spacing: -0.03em;
   }
 
-  /* Visible focus everywhere, without the default browser halo. Brass, because
-     focus is hardware — it is not a verdict, so it must not be verdigris. */
+  /* Visible focus everywhere, without the default browser halo. */
   :focus-visible {
-    outline: 2px solid theme("colors.brass");
+    outline: 2px solid rgb(var(--c-brass-lit));
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 6px;
+  }
+
+  /* Native checkboxes, radios and range sliders in the instrument colour. */
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"] {
+    accent-color: rgb(var(--c-brass));
+  }
+
+  /* Native dropdown lists ignore the glass behind them; give them a solid
+     surface from the palette instead of the OS's white. */
+  option,
+  optgroup {
+    background-color: rgb(var(--c-panel));
+    color: rgb(var(--c-ink));
   }
 }
 
 @layer components {
   /* ---------- Surfaces ----------
 
-     Borders are chalk at low alpha rather than plain white: a white hairline
-     on ink navy picks up the blue and reads as a seam rather than as an edge. */
-  .card {
-    @apply rounded-lg border border-[#F2F0EA]/[0.08] bg-panel/85 shadow-edge backdrop-blur-sm;
-  }
-  .card-tight {
-    @apply rounded-md border border-[#F2F0EA]/[0.06] bg-panelAlt/70;
+     A pane is lamplight at low alpha over a blurred backdrop, edged by a
+     hairline that catches the light along the top. Only panes that sit
+     directly on the desk blur; anything nested inside one is plain
+     translucency, because a blur of something already blurred costs a full
+     pass and shows nothing.
+
+     Never put a backdrop-filter on an ancestor of a board, a menu's
+     click-catcher, or anything else that is `position: fixed`: a filter makes
+     the element the containing block for fixed descendants, which breaks
+     react-chessboard's drag layer and confines overlays to the pane. */
+  .glass {
+    background-image: var(--glass-fill);
+    border: 1px solid var(--glass-edge);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    @apply shadow-card;
   }
 
-  /* A panel with a brass hairline along its top edge. Used for the few places
-     that have to announce themselves — the drill card, the review summary.
-     Sparingly: the whole point of brass is that it stays rare. */
+  .card {
+    @apply glass rounded-2xl;
+  }
+  .card-tight {
+    @apply rounded-xl border border-ivory/[0.08] bg-ivory/[0.04] shadow-edge;
+  }
+
+  /* A dialog. It always sits on a .scrim, which has already frosted the page,
+     so it takes its glassiness from that and carries no filter of its own -
+     dialogs hold boards (chapter setup, the position editor), and a board
+     must never have a filtered or transformed ancestor. */
+  .card-float {
+    background-image:
+      linear-gradient(160deg, rgb(var(--c-glint) / 0.12), rgb(var(--c-glint) / 0.04)),
+      linear-gradient(rgb(var(--c-panel) / 0.75), rgb(var(--c-panel) / 0.75));
+    border: 1px solid var(--glass-edge);
+    @apply rounded-2xl shadow-card;
+  }
+
+  /* Menus, popovers and tooltips. These open out of glass bars and panes, and
+     a blurred element is a "backdrop root": a filter on anything inside it
+     only sees the parent's own content, never the page behind. A blurred menu
+     hanging out of a blurred header therefore blurs nothing and the page shows
+     straight through. So a popover is near-solid frosted panel instead. */
+  .menu-pane {
+    background-image:
+      linear-gradient(160deg, rgb(var(--c-glint) / 0.1), rgb(var(--c-glint) / 0.03)),
+      linear-gradient(rgb(var(--c-panel) / 0.96), rgb(var(--c-panel) / 0.96));
+    border: 1px solid var(--glass-edge);
+    @apply rounded-2xl shadow-card;
+  }
+
+  /* A pane with a gilded hairline along its top edge, for the few places that
+     have to announce themselves - the drill card, the review summary. */
   .card-brass {
-    @apply relative rounded-lg border border-[#F2F0EA]/[0.08] bg-panel shadow-card;
+    @apply glass relative rounded-2xl;
   }
   .card-brass::before {
     content: "";
     position: absolute;
-    inset: 0 0 auto 0;
+    inset: -1px 18px auto 18px;
     height: 1px;
-    border-radius: 2px 2px 0 0;
     background: linear-gradient(
       90deg,
       transparent,
-      theme("colors.brass") 18%,
-      theme("colors.brassLit") 50%,
-      theme("colors.brass") 82%,
+      rgb(var(--c-brass-lit)) 25%,
+      rgb(var(--c-brass)) 60%,
+      rgb(var(--c-copper)) 85%,
       transparent
     );
   }
 
+  /* Full-width chrome (top bars, transport bars). Darker than a card so text
+     on it stays legible over the brightest pool of lamplight. */
+  .glass-bar {
+    background-color: rgb(var(--c-night) / 0.5);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    box-shadow:
+      inset 0 -1px 0 rgb(var(--c-glint) / 0.09),
+      0 10px 30px -18px rgb(6 3 1 / 0.9);
+  }
+
+  /* What a dialog dims the page with: frosted rather than blacked out, so you
+     can still see where you were. */
+  .scrim {
+    background-color: rgb(var(--c-night) / 0.6);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    backdrop-filter: blur(10px) saturate(120%);
+  }
+
   /* ---------- Controls ----------
 
-     Flat, not carved. The old buttons sat on a hard 4px bottom edge, which is
-     the right call on timber and the wrong one on ink: this palette's depth
-     comes from the surfaces stepping in blue, and a moulded key fights it.
-     A button here is a plate of brass with a lit top edge. */
+     Controls never blur: they always sit on a pane that already did. A button
+     is a chip of glass - a translucent fill with a lit top edge. */
   .btn {
-    @apply rounded-md border border-[#F2F0EA]/[0.12] bg-[#F2F0EA]/[0.05] px-3 py-1.5 text-sm
-           text-ink transition-colors duration-150
-           hover:border-brass/40 hover:bg-[#F2F0EA]/[0.09]
+    @apply rounded-xl border border-ivory/[0.14] bg-ivory/[0.07] px-3 py-1.5 text-sm
+           text-ink shadow-edge transition-[background-color,border-color,box-shadow] duration-150
+           hover:border-ivory/25 hover:bg-ivory/[0.12]
            disabled:pointer-events-none disabled:opacity-40;
   }
 
   /* The committing action: create the repertoire, save the line, submit the
-     answer. Brass — the instrument colour, never a verdict colour. */
+     answer. Polished brass, the only solid fill in the interface. */
   .btn-primary {
-    @apply rounded-md border border-brassLit/50 px-4 py-2 text-sm font-semibold text-[#1A1206]
-           shadow-edge transition-[background-color,border-color] duration-150
-           hover:border-brassLit disabled:pointer-events-none disabled:opacity-45;
-    background-color: theme("colors.brass");
-  }
-  .btn-primary:hover:not(:disabled) {
-    background-color: theme("colors.brassLit");
+    @apply rounded-xl border border-brassLit/60 px-4 py-2 text-sm font-semibold text-[#2A1608]
+           shadow-lamp transition-[filter,box-shadow,transform] duration-150
+           hover:brightness-110 active:translate-y-px
+           disabled:pointer-events-none disabled:opacity-45;
+    background-image: linear-gradient(
+      135deg,
+      rgb(var(--c-brass-lit)) 0%,
+      rgb(var(--c-brass)) 50%,
+      rgb(var(--c-copper)) 100%
+    );
   }
 
-  /* The advancing action: next card, next puzzle, keep going. Quieter than
-     the commit, because advancing is the thing you do twenty times in a row
-     and it should never shout on the twentieth. */
+  /* The advancing action: next card, next puzzle, keep going. Tinted glass,
+     quieter than the commit, because you press it twenty times in a row. */
   .btn-go {
-    @apply rounded-md border border-brass/45 bg-brass/[0.14] px-4 py-2 text-sm font-semibold
-           text-brassLit transition-colors duration-150
-           hover:border-brass hover:bg-brass/25
+    @apply rounded-xl border border-brass/40 bg-brass/[0.14] px-4 py-2 text-sm font-semibold
+           text-brassLit shadow-edge transition-colors duration-150
+           hover:border-brass/70 hover:bg-brass/25
            disabled:pointer-events-none disabled:opacity-40;
   }
 
   .input {
-    @apply w-full rounded-md border border-[#F2F0EA]/[0.12] bg-night/70 px-3 py-2
-           text-ink transition-colors duration-150 placeholder:text-faint
-           focus:border-brass/70 focus:outline-none focus:ring-2 focus:ring-brass/25;
+    @apply w-full rounded-xl border border-ivory/[0.12] bg-night/45 px-3 py-2
+           text-ink shadow-[inset_0_1px_2px_rgb(0_0_0/0.35)] transition-[border-color,box-shadow] duration-150
+           placeholder:text-faint
+           focus:border-brass/60 focus:outline-none focus:ring-4 focus:ring-brass/15;
   }
 
-  /* Segmented control: nav pills, section tabs, scope switches. */
+  /* Segmented control: nav pills, section tabs, scope switches. The selected
+     segment is a raised lozenge of brighter glass. */
   .seg {
-    @apply inline-flex items-center gap-0.5 rounded-md border border-[#F2F0EA]/[0.08]
-           bg-night/60 p-1;
+    @apply inline-flex items-center gap-0.5 rounded-full border border-ivory/[0.1]
+           bg-ivory/[0.05] p-1 shadow-[inset_0_1px_2px_rgb(0_0_0/0.3)];
   }
   .seg-item {
-    @apply rounded px-3 py-1 text-sm text-muted transition-colors
-           hover:bg-[#F2F0EA]/[0.07] hover:text-ink;
+    @apply rounded-full px-3 py-1 text-sm text-muted transition-[background-color,color,box-shadow]
+           duration-150 hover:bg-ivory/[0.07] hover:text-ink;
   }
   .seg-item-on {
-    @apply bg-brass/[0.16] font-medium text-brassLit hover:bg-brass/[0.16] hover:text-brassLit;
+    @apply bg-ivory/[0.15] font-medium text-ink
+           shadow-[inset_0_1px_0_rgb(var(--c-glint)/0.24),0_4px_14px_-6px_rgb(6_3_1/0.85)]
+           hover:bg-ivory/[0.15] hover:text-ink;
   }
 
   .chip {
-    @apply inline-flex items-center gap-1 rounded px-2 py-0.5 font-mono text-[10px]
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px]
            uppercase tracking-wider;
   }
 
-  /* Section heading inside a panel: small, quiet, always the same. Mono,
-     because these are labels on an instrument. */
+  /* Section heading inside a pane: small, quiet, always the same. */
   .eyebrow {
-    @apply font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-faint;
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.16em] text-faint;
   }
 
-  /* A hairline that carries a label, for splitting a rail into named parts.
-     The rule runs to the end of the container so the label reads as engraved
-     on it rather than floating above it. */
+  /* A hairline that carries a label, for splitting a rail into named parts. */
   .rule-label {
-    @apply flex items-center gap-3 font-mono text-[10px] font-medium uppercase
-           tracking-[0.18em] text-faint;
+    @apply flex items-center gap-3 text-[10.5px] font-semibold uppercase
+           tracking-[0.16em] text-faint;
   }
   .rule-label::after {
     content: "";
     flex: 1;
     height: 1px;
-    background: linear-gradient(90deg, theme("colors.line"), transparent);
+    background: linear-gradient(90deg, rgb(var(--c-glint) / 0.16), transparent);
   }
 
   /* Algebraic notation set as notation: a move is a token, not a word in a
@@ -156,12 +286,23 @@
     @apply font-mono font-medium tracking-tight text-ink;
   }
 
+  /* Gold-leaf text for the few headline words that carry the product's claim. */
+  .text-gilded {
+    background-image: linear-gradient(
+      100deg,
+      rgb(var(--c-brass-lit)) 0%,
+      rgb(var(--c-brass)) 55%,
+      rgb(222 128 70) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
   /* ---------- Long-form prose ----------
 
-     Terms, Privacy and the credits page. The only screens in the app made of
-     sentences rather than controls, so they get the one thing the rest of the
-     UI never needs: a measure narrow enough to read down, and vertical rhythm
-     that survives twenty headings in a row. */
+     Terms, Privacy and the credits page. The only screens made of sentences
+     rather than controls, so they get a measure narrow enough to read down. */
   .legal {
     @apply text-sm leading-relaxed text-ink/85;
   }
@@ -184,7 +325,7 @@
     @apply text-brassLit underline underline-offset-2;
   }
   .legal code {
-    @apply rounded bg-[#F2F0EA]/[0.07] px-1 py-px font-mono text-[0.85em];
+    @apply rounded-md bg-ivory/[0.08] px-1 py-px font-mono text-[0.85em];
   }
   /* A blank the operator still has to fill in. Loud on purpose. */
   .legal .todo {
@@ -193,24 +334,36 @@
 
   /* A key you are being told to hold, inside a line of instructions. */
   .kbd {
-    @apply rounded border border-[#F2F0EA]/20 bg-[#F2F0EA]/[0.06] px-1 py-px
-           font-mono text-[10px] text-ink;
+    @apply rounded-md border border-ivory/20 bg-ivory/[0.08] px-1 py-px
+           font-mono text-[10px] text-ink shadow-edge;
   }
 
   /* ---------- Board ----------
 
-     The board is seated in a thin brass bezel rather than a timber surround.
-     Wood was doing two jobs — separating the board from the page, and saying
-     "chess" — and only the first one was needed. The ink ground separates it
-     on its own, so all that is left to do is edge it.
+     The board is seated in a bezel of dark polished timber with a brass inlay
+     around the squares, like a real board's frame. No backdrop-filter here,
+     deliberately: react-chessboard draws the piece you are dragging in a
+     `position: fixed` layer, and a filtered ancestor would become that
+     layer's containing block and throw the piece off the cursor.
 
      The 10px padding is mirrored by BOARD_FRAME in lib/boardTheme.ts, which
      boards that are handed an exact pixel size subtract from the space they
      measure. Change one and change the other. */
   .board-frame {
-    @apply relative rounded-md bg-panelAlt p-2.5 shadow-board;
+    @apply relative rounded-2xl p-2.5 shadow-board;
+    border: 1px solid rgb(var(--c-glint) / 0.14);
+    background-color: rgb(var(--c-bezel));
+    background-image:
+      linear-gradient(
+        150deg,
+        rgb(var(--c-glint) / 0.16) 0%,
+        transparent 38%,
+        rgb(0 0 0 / 0.28) 100%
+      ),
+      var(--wood-grain);
+    background-size: auto, 1100px 700px;
   }
-  /* The bezel the board sits down into: a brass hairline plus a shadow onto
+  /* The inlay the board sits down into: a brass hairline plus a shadow onto
      the outer squares, so the two planes are visibly separate.
 
      Drawn as an overlay rather than as `overflow: hidden` on the board itself.
@@ -222,77 +375,68 @@
     inset: 10px;
     z-index: 20;
     pointer-events: none;
-    border-radius: 2px;
+    border-radius: 4px;
     box-shadow: theme("boxShadow.frame");
   }
 }
 
-/* Ambient light: a cold overhead wash and a brass bounce off the desk, so the
-   page is not one flat field of navy. Kept dim — this app is stared at for
-   hours.
+/* The desk: a walnut field with real grain, lit by a reading lamp from the top
+   left and the warm bounce of the room around it. The glass panes blur all of
+   this into soft amber and brown; the grain shows sharp only in the gaps
+   between them, which is what makes the panes read as glass laid on wood.
 
    Deliberately static. These sit underneath every backdrop-blur surface in the
-   app (header, games rail, analysis panel, transport bar), and a backdrop-filter
-   has to recompute whenever the pixels behind it move. Drifting them meant
-   re-blurring most of the chrome on every frame, for the whole session — an
-   animation nobody consciously notices, paid for continuously. */
+   app (header, games rail, analysis panel, cards), and a backdrop-filter has
+   to recompute whenever the pixels behind it move. Animating the light would
+   mean re-blurring most of the chrome on every frame, for the whole session. */
 body::before {
   content: "";
   position: fixed;
-  inset: -20%;
+  inset: -10%;
   z-index: -1;
   pointer-events: none;
   background-image:
-    radial-gradient(44% 36% at 14% 0%, rgba(80, 122, 184, 0.2), transparent 62%),
-    radial-gradient(38% 32% at 92% 4%, rgba(63, 191, 163, 0.09), transparent 60%),
-    radial-gradient(58% 44% at 56% 106%, rgba(201, 156, 86, 0.13), transparent 66%);
+    radial-gradient(42% 46% at 14% 4%, rgb(236 156 70 / 0.3), transparent 70%),
+    radial-gradient(34% 40% at 90% 8%, rgb(246 196 120 / 0.15), transparent 70%),
+    radial-gradient(44% 44% at 82% 100%, rgb(176 70 38 / 0.26), transparent 72%),
+    radial-gradient(40% 44% at 2% 98%, rgb(120 58 26 / 0.3), transparent 72%),
+    radial-gradient(120% 95% at 50% 45%, transparent 55%, rgb(4 2 1 / 0.6) 100%),
+    var(--wood-grain),
+    var(--wood-base);
+  background-size: auto, auto, auto, auto, auto, 1100px 700px, auto;
 }
 
-/* Laid-paper tooth on the ground. Two passes at slightly different angles and
-   periods so the grain never resolves into a visible repeat. Much finer than
-   the wood striation it replaces — this should read as the surface you write
-   on, not as a material you can name. */
+/* Film grain over the whole field. Glass reads as glass partly because the
+   blur smooths out a texture you can see around it; without grain the panes
+   look like flat tinted rectangles. */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.5;
-  background-image:
-    repeating-linear-gradient(
-      92deg,
-      rgba(242, 240, 234, 0.013) 0 1px,
-      transparent 1px 5px,
-      rgba(3, 8, 18, 0.026) 5px 6px,
-      transparent 6px 13px
-    ),
-    repeating-linear-gradient(
-      2deg,
-      rgba(242, 240, 234, 0.009) 0 1px,
-      transparent 1px 19px
-    );
-  mask-image: radial-gradient(85% 65% at 50% 40%, #000, transparent 100%);
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 0.93  0 0 0 0 0.82  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 
 ::selection {
-  background: rgba(201, 156, 86, 0.32);
+  background: rgb(var(--c-brass) / 0.35);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2F4A6B transparent;
+  scrollbar-color: rgb(var(--c-glint) / 0.2) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #2f4a6b;
-  border-radius: 4px;
+  background: rgb(var(--c-glint) / 0.18);
+  border-radius: 999px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #416389;
+  background: rgb(var(--c-glint) / 0.3);
 }
 *::-webkit-scrollbar-track {
   background: transparent;
@@ -305,5 +449,16 @@ body::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Users who ask the OS for less transparency get solid panes. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-fill: linear-gradient(rgb(var(--c-panel)), rgb(var(--c-panel)));
+    --glass-blur: none;
+  }
+  .glass-bar {
+    background-color: rgb(var(--c-panel));
   }
 }

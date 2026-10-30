@@ -41,7 +41,7 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-ivory/[0.04]">
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-ivory/[0.04]">
       <input
         type="checkbox"
         className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
@@ -79,20 +79,20 @@ export default function SettingsModal({ me, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="scrim fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Analysis settings"
     >
       <div
-        className="card flex max-h-[85dvh] w-full max-w-lg flex-col shadow-card"
+        className="card-float flex max-h-[85dvh] w-full max-w-lg animate-fade flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-ivory/[0.07] px-4 py-3">
-          <h2 className="text-base font-semibold">Settings</h2>
+          <h2 className="font-display text-lg">Settings</h2>
           <button
-            className="ml-auto rounded-lg px-2 py-1 text-muted transition-colors hover:bg-ivory/[0.07] hover:text-ink"
+            className="ml-auto grid h-7 w-7 place-items-center rounded-full text-muted transition-colors hover:bg-ivory/10 hover:text-ink"
             onClick={onClose}
             aria-label="Close settings"
           >
@@ -140,7 +140,7 @@ export default function SettingsModal({ me, onClose }: Props) {
                   <p className="mt-2 font-mono text-xs text-muted">{engines.find((engine) => engine.id === s.engine)?.version}</p>}
                 {error && <p className="text-xs text-bad">{error}</p>}
                 <a href="https://github.com/shivamjg101/chessrabbit/blob/codex/open-source-local-engines/docs/LOCAL_SETUP.md"
-                  className="mt-2 block text-xs text-accent underline">Configure engines</a>
+                  className="mt-2 block text-xs text-brassLit underline">Configure engines</a>
               </section>
 
               <section className="border-t border-ivory/[0.06] pt-3">
@@ -245,15 +245,15 @@ export default function SettingsModal({ me, onClose }: Props) {
                       key={t.id}
                       onClick={() => updateSettings({ boardTheme: t.id })}
                       aria-pressed={s.boardTheme === t.id}
-                      className={`rounded-xl p-2 text-left transition-all ${
+                      className={`rounded-2xl p-2 text-left transition-all ${
                         s.boardTheme === t.id
-                          ? "bg-accent/15 ring-2 ring-accent"
+                          ? "bg-brass/15 ring-2 ring-brass"
                           : "ring-1 ring-ivory/[0.08] hover:ring-ivory/25"
                       }`}
                     >
                       {/* 4x4 slice of the real board, so the swatch is the thing
                           it is selecting rather than an approximation. */}
-                      <div className="mb-1.5 grid grid-cols-4 overflow-hidden rounded-md">
+                      <div className="mb-1.5 grid grid-cols-4 overflow-hidden rounded-lg">
                         {Array.from({ length: 16 }).map((_, i) => {
                           const dark = (Math.floor(i / 4) + i) % 2 === 1;
                           return (

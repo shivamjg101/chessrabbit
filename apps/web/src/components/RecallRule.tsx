@@ -10,7 +10,7 @@ import { MINOR, TICKS, intervalLabel, pos } from "@/lib/recallScale";
  * it decides when you will see this position again, and that decision is the
  * whole value of drilling. Everywhere else that number is a sentence in small
  * grey text ("next review in 6 days") which nobody reads twice. Here it is a
- * brass scale with a needle on it, and answering moves the needle.
+ * lit scale with a needle on it, and answering moves the needle.
  *
  * Correct, and the needle travels right to its new interval. Wrong, and it
  * drops back to the first tick, which is exactly what the algorithm did to the
@@ -63,7 +63,7 @@ export default function RecallRule({
 
   const tone = correct === null ? "brass" : correct ? "accent" : "bad";
   const needleColor =
-    tone === "brass" ? "#C99C56" : tone === "accent" ? "#3FBFA3" : "#F2604E";
+    tone === "brass" ? "#D6A05C" : tone === "accent" ? "#70C586" : "#E66250";
 
   return (
     <div className={className}>
@@ -73,12 +73,14 @@ export default function RecallRule({
         // meaning for anyone not looking at it.
         aria-hidden
       >
-        {/* The brass edge itself. Solid through the travelled span and faint
-            beyond it, so the scale reads as a measurement already taken rather
-            than as an empty ruler. */}
-        <div className="absolute inset-x-0 top-8 h-px bg-brass/25" />
+        {/* The edge itself. Lit through the travelled span and faint beyond
+            it, so the scale reads as a measurement already taken rather than
+            as an empty ruler. */}
+        <div className="absolute inset-x-0 top-8 h-px bg-ivory/15" />
         <div
-          className="absolute top-8 h-px bg-brassLit motion-safe:transition-[width] motion-safe:duration-[620ms]"
+          className="absolute top-8 h-0.5 -translate-y-px rounded-full bg-brassLit
+                     shadow-[0_0_10px_rgb(var(--c-brass)/0.85)]
+                     motion-safe:transition-[width] motion-safe:duration-[620ms]"
           style={{
             width: `${at}%`,
             transitionTimingFunction: "cubic-bezier(0.34, 1.32, 0.42, 1)",
@@ -88,7 +90,7 @@ export default function RecallRule({
         {MINOR.map((d) => (
           <span
             key={d}
-            className="absolute top-8 h-2 w-px bg-brass/40"
+            className="absolute top-8 h-2 w-px bg-ivory/25"
             style={{ left: `${pos(d)}%` }}
           />
         ))}
@@ -103,7 +105,7 @@ export default function RecallRule({
             >
               <span
                 className={`transition-colors duration-300 ${
-                  reached ? "h-4 w-0.5 bg-brassLit" : "h-3 w-px bg-brass/50"
+                  reached ? "h-4 w-0.5 bg-brassLit" : "h-3 w-px bg-ivory/35"
                 }`}
               />
               <span
@@ -128,13 +130,13 @@ export default function RecallRule({
           }}
         >
           <span
-            className="block h-8 w-0.5 transition-colors duration-300"
-            style={{ backgroundColor: needleColor }}
+            className="block h-8 w-0.5 rounded-full transition-colors duration-300"
+            style={{ backgroundColor: needleColor, boxShadow: `0 0 12px ${needleColor}` }}
           />
           <span
-            className="absolute -top-1.5 left-1/2 block h-3 w-3 -translate-x-1/2 rotate-45
-                       transition-colors duration-300"
-            style={{ backgroundColor: needleColor }}
+            className="absolute -top-1.5 left-1/2 block h-3 w-3 -translate-x-1/2 rounded-full
+                       border border-white/60 transition-colors duration-300"
+            style={{ backgroundColor: needleColor, boxShadow: `0 0 14px ${needleColor}` }}
           />
         </span>
       </div>

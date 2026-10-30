@@ -28,11 +28,11 @@ export default function LegalDoc({
 }: Props) {
   return (
     <div className="mx-auto min-h-dvh max-w-3xl px-4 py-8">
-      <header className="mb-8">
-        <Link href="/" className="text-xs text-muted underline hover:text-ink">
+      <header className="mb-6">
+        <Link href="/" className="btn rounded-full px-3 text-xs">
           ← ChessRabbit
         </Link>
-        <h1 className="mt-3 font-display text-3xl">{title}</h1>
+        <h1 className="mt-5 font-display text-4xl">{title}</h1>
         {standfirst && (
           <p className="mt-2 text-sm leading-relaxed text-muted">{standfirst}</p>
         )}
@@ -41,9 +41,11 @@ export default function LegalDoc({
         )}
       </header>
 
-      <div className="legal">{children}</div>
+      {/* The reading column is one pane of glass, darkened a little so long
+          prose never sits over the brightest part of the aurora. */}
+      <div className="legal card bg-night/30 p-6 sm:p-8">{children}</div>
 
-      <footer className="mt-12 border-t border-ivory/[0.08] pt-4">
+      <footer className="mt-6 px-2">
         <nav className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
           <Link href="/terms" className="hover:text-ink hover:underline">
             Terms

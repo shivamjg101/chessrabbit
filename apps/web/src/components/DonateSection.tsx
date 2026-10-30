@@ -4,12 +4,8 @@ const DONATE_URL = "https://buymeacoffee.com/shivamjg101";
 
 export default function DonateSection() {
   return (
-    <section
-      id="donate"
-      aria-labelledby="donate-heading"
-      className="border-t border-line/60 py-12 sm:py-16"
-    >
-      <div className="grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_288px] md:gap-12">
+    <section id="donate" aria-labelledby="donate-heading" className="pb-16">
+      <div className="card-brass grid items-center gap-8 p-6 sm:p-10 md:grid-cols-[minmax(0,1fr)_260px] md:gap-12">
         <div>
           <p className="eyebrow mb-3">Community supported</p>
           <h2 id="donate-heading" className="font-display text-3xl leading-tight text-ink sm:text-4xl">
@@ -36,12 +32,14 @@ export default function DonateSection() {
           </p>
         </div>
 
-        <figure className="mx-auto w-full max-w-72">
+        <figure className="mx-auto w-full max-w-64">
+          {/* The code stays on solid white: a scanner needs the contrast, and
+              glass behind it would only cost reads. */}
           <a
             href={DONATE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="block rounded-lg bg-white p-4"
+            className="block rounded-2xl bg-white p-4 shadow-card ring-1 ring-white/40"
           >
             <Image
               src="/images/buy-me-a-coffee-qr.png"

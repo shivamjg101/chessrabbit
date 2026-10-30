@@ -12,17 +12,23 @@ import {
   addMove,
   annotate,
   canPromoteToMainline,
+  createTree,
   deleteSubtree,
   endOfLine,
+  lineTo,
   mainlinePath,
+  mergeTree,
   nearestMainline,
   nodeAt,
   promoteSibling,
   promoteToMainline,
   siblingBy,
   startOfLine,
+  stripAnnotations,
+  truncateAfter,
 } from "@/lib/moveTree";
 import { Row, renderTree } from "@/lib/moveTreeRender";
+import { toggleGlyph as toggleGlyphOn } from "@/lib/nags";
 import { parsePgn, toMovetext, toPgn } from "@/lib/pgn";
 import { Shape, joinComment, splitComment } from "@/lib/shapes";
 import { loadTree, saveTree } from "@/lib/treeStorage";
@@ -91,11 +97,31 @@ export interface MoveTreeApi {
   setShapes: (id: NodeId, shapes: Shape[]) => void;
   /** !, ?, !! and the rest. `undefined` takes the mark off. */
   setNag: (id: NodeId, nag: number | undefined) => void;
+  /**
+   * Put a glyph on a move or take it off, with the palette's rules: one move
+   * mark, one position assessment, any number of observations. lib/nags.ts.
+   */
+  toggleGlyph: (id: NodeId, nag: number) => void;
+
+  /** Drop every move played after the current position. */
+  truncate: () => void;
+  /** Take every comment, glyph and drawing off the whole tree. */
+  clearAnnotations: () => void;
+  /**
+   * Replace the board with a pasted position or game. A FEN sets up an empty
+   * board on that position; anything else is read as PGN. False when the text
+   * is neither, and the board is left as it was.
+   */
+  load: (text: string) => boolean;
+  /** Pour other games in as variations. Returns how many were merged. */
+  merge: (pgns: string[]) => number;
 
   /** The game and every line off it, as PGN anything else can read. */
   exportPgn: (headers?: Record<string, string>) => string;
   /** The same moves with no tag pairs - what a study chapter stores. */
   exportMovetext: () => string;
+  /** Only the line from the start to the current move, as movetext. */
+  lineMovetext: () => string;
 }
 
 export interface MoveTreeOptions {
@@ -343,6 +369,66 @@ export function useMoveTree(
     setTree((t) => (nodeAt(t, id) ? annotate(t, id, { nag }) : t));
   }, []);
 
+  const toggleGlyph = useCallback((id: NodeId, nag: number) => {
+    setTree((t) => {
+      const n = nodeAt(t, id);
+      return n ? annotate(t, id, toggleGlyphOn(n, nag)) : t;
+    });
+  }, []);
+
+  const truncate = useCallback(() => setTree((t) => truncateAfter(t, cursorId)), [cursorId]);
+
+  const clearAnnotations = useCallback(() => setTree((t) => stripAnnotations(t)), []);
+
+  const load = useCallback(
+    (text: string) => {
+      const pasted = text.trim();
+      if (!pasted) return false;
+
+      // A FEN is one line of six fields with seven slashes in the first. Tried
+      // first, because a FEN is also valid-looking garbage to the PGN reader,
+      // which would come back with an empty tree and call that a success.
+      const fields = pasted.split(/\s+/);
+      if (!pasted.includes("[") && fields[0]?.split("/").length === 8) {
+        try {
+          const fen = new Chess(pasted).fen();
+          setTree(createTree(fen));
+          setHeaders({});
+          setCursorId(ROOT);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      const parsed = parsePgn(pasted);
+      if (parsed.tree.nodes.size < 2 && !parsed.headers.FEN) return false;
+      setTree(unlocked ? { ...parsed.tree, locked: false } : parsed.tree);
+      setHeaders(parsed.headers);
+      setCursorId(ROOT);
+      return true;
+    },
+    [unlocked]
+  );
+
+  const merge = useCallback(
+    (pgns: string[]) => {
+      let merged = 0;
+      let next = tree;
+      const startFen = nodeAt(tree, tree.root)?.fen;
+      for (const pgn of pgns) {
+        const other = parsePgn(pgn, startFen).tree;
+        if (other.nodes.size < 2) continue;
+        const out = mergeTree(next, other);
+        if (out !== next) merged++;
+        next = out;
+      }
+      setTree(next);
+      return merged;
+    },
+    [tree]
+  );
+
   const written = useMemo(() => splitComment(node.comment), [node.comment]);
 
   const exportPgn = useCallback(
@@ -351,6 +437,12 @@ export function useMoveTree(
   );
 
   const exportMovetext = useCallback(() => toMovetext(tree), [tree]);
+
+  const lineMovetext = useCallback(() => {
+    const root = nodeAt(tree, tree.root)!;
+    const line = addLine(createTree(root.fen), ROOT, lineTo(tree, cursorId).map((n) => n.san));
+    return toMovetext(line.tree);
+  }, [tree, cursorId]);
 
   // Handed out as one value that only changes when something in it did. The
   // board keeps this in effect dependencies - a fresh object per render meant
@@ -390,8 +482,14 @@ export function useMoveTree(
       setComment,
       setShapes,
       setNag,
+      toggleGlyph,
+      truncate,
+      clearAnnotations,
+      load,
+      merge,
       exportPgn,
       exportMovetext,
+      lineMovetext,
     }),
     [
       tree,
@@ -422,8 +520,14 @@ export function useMoveTree(
       setComment,
       setShapes,
       setNag,
+      toggleGlyph,
+      truncate,
+      clearAnnotations,
+      load,
+      merge,
       exportPgn,
       exportMovetext,
+      lineMovetext,
     ]
   );
 }
