@@ -97,6 +97,7 @@ export const guides = [
     heading: 'Stockfish chess analysis, with room to think.',
     description: 'Use Stockfish in ChessRabbit, a free Windows chess analysis app. Review games, explore candidate moves, and add Leela Chess Zero or other UCI engines.',
     category: 'ENGINES',
+    modified: '2026-10-08',
     intro: 'A chess engine can find a strong move. The useful part is understanding why it works. Here’s how to make engine analysis part of your own thinking.',
     body: `<h2>A chess engine and an analysis app do different jobs.</h2>
 <p>Stockfish is a chess engine: it searches possible continuations and evaluates positions. ChessRabbit is the workspace around it. You get a board, a local game library, full-game reviews, studies, and training tools. The documented Windows installer includes Stockfish 19, so you can begin without finding and configuring a separate engine.</p>
@@ -118,6 +119,7 @@ export const guides = [
     heading: 'Your chess analysis. Available offline.',
     description: 'Analyze local PGN games offline on Windows with ChessRabbit and the included Stockfish engine. Learn what works without internet and how to keep backups.',
     category: 'YOUR WORKSPACE',
+    modified: '2026-10-08',
     intro: 'A quiet desk, a saved game, and a position worth understanding. Once ChessRabbit is installed, local analysis does not need a constant internet connection.',
     body: `<h2>What works without an internet connection?</h2>
 <p>ChessRabbit is a desktop chess analysis and training app for Windows. The installer includes Stockfish, and your games and analysis results are stored locally. You can review a PGN you already have, analyze positions with an installed engine, and work with your local studies without being connected.</p>
@@ -139,6 +141,7 @@ export const guides = [
     heading: 'Turn a PGN into a lesson you can use.',
     description: 'Import and review PGN chess games with ChessRabbit. Analyze critical moves with Stockfish, save variations and comments, and build a practical review routine.',
     category: 'GAME REVIEW',
+    modified: '2026-10-08',
     intro: 'A saved game is a record of your decisions. A useful review turns those decisions into something you can recognize next time.',
     body: `<h2>What is a PGN file?</h2>
 <p>Portable Game Notation, or PGN, is a text format for chess games. It can contain moves, game details such as the players and result, and sometimes comments and variations. Many chess platforms let you export a game as PGN so you can review it in another application.</p>
@@ -155,5 +158,28 @@ export const guides = [
 <h2>Local files or online imports?</h2>
 <p>Local PGN files are useful when you want a review session without a network connection. ChessRabbit also offers optional Lichess and Chess.com imports; those need internet access and depend on the upstream service. Keep an exported copy of important games and back up your local ChessRabbit data.</p>
 <p>Read the <a href="https://github.com/shivamjg101/chessrabbit/blob/main/docs/DESKTOP.md">desktop guide</a> for storage and setup details. Your next review does not need to be long: choose one game, understand one turning point, and leave yourself one clear lesson.</p>`,
+  },
+  {
+    slug: 'analyse-lichess-chess-com-games',
+    title: 'Analyse Lichess & Chess.com Games Free on Windows | ChessRabbit',
+    heading: 'Bring your online games home for review.',
+    description: 'Import your Lichess or Chess.com games into ChessRabbit with just a username, then review them free on Windows with Stockfish: accuracy, mistakes and better moves.',
+    category: 'GAME REVIEW / IMPORTS',
+    modified: '2026-10-31',
+    intro: 'You played the game online; the lessons can live on your own computer. Connect a Lichess or Chess.com username, import your recent games, and review any of them with the included Stockfish engine.',
+    body: `<nav aria-label="Guide steps"><p><a href="#connect">Connect a username</a> · <a href="#review">Review a game</a> · <a href="#pgn">Import a PGN instead</a> · <a href="#notes">Good to know</a></p></nav>
+<div class="callout"><p>This guide is for the ChessRabbit desktop app on Windows 10/11 x64. Importing needs an internet connection; once your games are in your library, reviewing them works offline.</p></div>
+<h2 id="connect">1. Connect your Lichess or Chess.com username.</h2>
+<ol><li>Open ChessRabbit and go to the <strong>Board</strong> view, where your game library lives.</li><li>Open the <strong>Account menu</strong> in the top corner and choose <strong>Connected accounts</strong>.</li><li>Pick <strong>Lichess</strong> or <strong>Chess.com</strong>, type the username, and select <strong>Connect</strong>.</li></ol>
+<p>ChessRabbit asks the platform's public API for that player's games and adds them to your local library, newest first, up to 300 games per sync. Games that are already in your library are reported as already here rather than added twice. Only the username is needed: no password, token or account link.</p>
+<p>Later, open <strong>Connected accounts</strong> again and choose <strong>Sync now</strong> to bring in games you have played since. You can connect both a Lichess and a Chess.com username, and disconnect either at any time.</p>
+<h2 id="review">2. Review a game with Stockfish.</h2>
+<ol><li>Open a game from your library.</li><li>In the <strong>Report</strong> tab, choose <strong>Review this game</strong>. ChessRabbit analyses every position with the engine selected in Analysis settings; Stockfish is included and selected by default.</li><li>Read the result: an accuracy score for each player and a classification for every move, from best and excellent through inaccuracy, mistake and blunder, with the engine's better move and a short line where you went wrong.</li><li>Step to a critical position and explore. With auto-analysis on, the engine shows its candidate lines as you move through the game.</li></ol>
+<p>A review runs on your computer, so how long it takes depends on your processor and the depth you choose. If you later switch to another engine, such as Leela Chess Zero, use <strong>Re-run review</strong> to replace the stored review with the new engine's results.</p>
+<h2 id="pgn">3. Prefer a single game? Import a PGN.</h2>
+<p>Both Lichess and Chess.com let you download a finished game as a PGN file. In ChessRabbit, choose <strong>+ Import</strong> (or <strong>Import PGN</strong> in the Account menu), paste the PGN text, and import it. This is handy for a game from a tournament, a friend or another site. See <a href="../pgn-game-review/">turning a PGN into a lesson</a> for a review routine that goes beyond the accuracy score.</p>
+<h2 id="notes">Good to know.</h2>
+<ul><li><strong>Your library stays local.</strong> Imported games, reviews and notes are stored on your computer in ChessRabbit's data folder. Back up the whole folder with the app closed.</li><li><strong>The upstream services decide what is available.</strong> Imports depend on Lichess and Chess.com being reachable and on what they make public for that username. If a platform rate-limits a sync, wait a minute and try again.</li><li><strong>A review is a starting point.</strong> Use the classifications to find the two or three positions worth understanding, then save the lesson in a study so it comes back to you.</li></ul>
+<p>Read the <a href="https://github.com/shivamjg101/chessrabbit/blob/main/docs/DESKTOP.md">desktop guide</a> for data, engines and backups.</p>`,
   },
 ];

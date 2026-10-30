@@ -13,6 +13,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--app-dir", "apps/api", "--reload", "--port", "8000"],
       "port": 8000
+    },
+    {
+      "name": "website",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "4173", "--bind", "127.0.0.1", "--directory", "website/dist"],
+      "port": 4173
     }
   ]
 }

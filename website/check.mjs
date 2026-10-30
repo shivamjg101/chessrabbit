@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('./dist/', import.meta.url));
 const allFiles = await readdir(root, { recursive: true });
 const pages = allFiles.filter(file => file.endsWith('index.html'));
-assert.equal(pages.length, 7, 'Expected the homepage, product facts, and five guides');
+assert.equal(pages.length, 8, 'Expected the homepage, product facts, and six guides');
 const titles = new Set(), descriptions = new Set(), canonicals = new Set();
 for (const file of pages) {
   const absolute = join(root, file);
@@ -45,6 +45,9 @@ assert.equal(canonicals.size, pages.length, 'Canonicals must be unique');
 const sitemap = await readFile(join(root, 'sitemap.xml'), 'utf8');
 const locations = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(match => match[1]);
 assert.deepEqual(new Set(locations), canonicals);
+const lastmods = [...sitemap.matchAll(/<lastmod>(.*?)<\/lastmod>/g)].map(match => match[1]);
+assert.equal(lastmods.length, locations.length, 'Every sitemap URL needs a lastmod');
+for (const date of lastmods) assert(/^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(date)), `Bad lastmod: ${date}`);
 const robots = await readFile(join(root, 'robots.txt'), 'utf8');
 assert(robots.includes(`Sitemap: ${locations[0]}sitemap.xml`));
 const home = await readFile(join(root, 'index.html'), 'utf8');
