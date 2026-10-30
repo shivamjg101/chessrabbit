@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "description": "Free, open-source chess analysis and training on your computer",
   "author": "shivamjg101",
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-only",
   "main": "main.cjs",
   "private": true,
   "scripts": {
