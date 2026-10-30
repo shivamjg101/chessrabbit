@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use ChessRabbit in your work, please cite it as below."
+title: "ChessRabbit"
+abstract: "Free, open-source desktop chess analysis and training for Windows, with Stockfish included and support for Leela Chess Zero and other UCI engines."
+type: software
+authors:
+  - alias: shivamjg101
+license: GPL-3.0-only
+repository-code: "https://github.com/shivamjg101/chessrabbit"
+url: "https://shivamjg101.github.io/chessrabbit/"
+keywords:
+  - chess
+  - chess analysis
+  - Stockfish
+  - Leela Chess Zero
+  - PGN
+  - game review
+version: "0.1.2"
+date-released: "2026-10-03"

@@ -1,8 +1,13 @@
 # ChessRabbit
 
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/shivamjg101/chessrabbit?include_prereleases&label=download)](https://github.com/shivamjg101/chessrabbit/releases)
+[![CI](https://github.com/shivamjg101/chessrabbit/actions/workflows/ci.yml/badge.svg)](https://github.com/shivamjg101/chessrabbit/actions/workflows/ci.yml)
+[![Website](https://img.shields.io/badge/website-chessrabbit-8a5a2b.svg)](https://shivamjg101.github.io/chessrabbit/)
+
 Free desktop chess analysis and training for Windows. ChessRabbit runs on your computer, stores your games locally, and works with Stockfish, Leela Chess Zero (Lc0), or another UCI engine.
 
-[Visit the ChessRabbit website](https://shivamjg101.github.io/chessrabbit/) for an introduction, downloads, and guides to Stockfish, offline analysis, and PGN game review.
+[Visit the ChessRabbit website](https://shivamjg101.github.io/chessrabbit/) for an introduction, downloads, and guides to Stockfish, offline analysis, PGN game review, and reviewing your Lichess and Chess.com games.
 
 See [product facts and compatibility](https://shivamjg101.github.io/chessrabbit/about/) for supported platforms, requirements, use cases, and release limitations. [Machine-readable product data](https://shivamjg101.github.io/chessrabbit/product.json) is also available. The Windows 0.1.2 download is currently marked as a prerelease.
 
@@ -126,6 +131,7 @@ To stop the app and keep your data: `docker compose down`.
 - Live position analysis with selectable depth and candidate lines.
 - Full-game reviews, move annotations, accuracy and mistake training.
 - PGN import/export, collections, opening explorer and reference search.
+- Database tools: tournament crosstables, player dossiers, duplicate-game cleanup, position search in your own games, and a novelty finder for the first new move of a game.
 - Studies with variations, comments and board annotations.
 - Opening repertoires, spaced repetition, puzzles and opponent preparation.
 - Optional Lichess/Chess.com imports and public player insights.
@@ -137,9 +143,10 @@ Your desktop games and results are stored in `%APPDATA%/ChessRabbit/local`. Dock
 ## Community and legal
 
 - Read the [privacy policy](PRIVACY.md), [security policy](SECURITY.md), [legal notes](LEGAL.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
-- Ask setup questions and share ideas in [Discussions](https://github.com/shivamjg101/chessrabbit/discussions).
+- Everyone taking part agrees to the [code of conduct](CODE_OF_CONDUCT.md).
+- Ask setup questions and share ideas in [Discussions](https://github.com/shivamjg101/chessrabbit/discussions); [Support](SUPPORT.md) lists where to get help.
 - Report reproducible bugs with the issue templates.
-- See the [roadmap](ROADMAP.md) for near-term work.
+- See the [changelog](CHANGELOG.md) for what changed and the [roadmap](ROADMAP.md) for near-term work.
 - Use the [launch kit](docs/LAUNCH_KIT.md) if you want to share ChessRabbit with other chess players.
 
 ## Project layout
@@ -165,5 +172,7 @@ See [Development](docs/DEVELOPMENT_GUIDE.md), [Architecture](BLUEPRINT.md) and [
 Existing installations must apply `db/migrations/016_community_edition.sql` before running this branch. Back up first. Older subscription records are retained as inert historical tables; no runtime code reads or writes them. Schema changes only run automatically on a fresh database volume.
 
 ## License
+
+Copyright (C) 2026 shivamjg101 and ChessRabbit contributors.
 
 ChessRabbit is licensed under **GPL-3.0**, see [LICENSE](LICENSE). Third-party software and datasets retain their licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Public downloads should include corresponding source, notices and checksums; see [LEGAL.md](LEGAL.md). The Windows build workflow produces an installer and corresponding source release.
