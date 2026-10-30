@@ -38,7 +38,7 @@ node website/check.mjs
 
 ## Search visibility after launch
 
-The site includes descriptive, unique titles and meta descriptions, canonical URLs, a sitemap, social previews, SoftwareApplication/Article structured data, accessible static HTML, and five linked guides covering Stockfish, offline analysis, PGN review, and Leela Chess Zero installation and analysis. No fabricated reviews, ratings, rankings, or keyword stuffing are included.
+The site includes descriptive, unique titles and meta descriptions, canonical URLs, a sitemap, social previews, SoftwareApplication, WebSite, Article and BreadcrumbList structured data, sitemap `lastmod` dates, accessible static HTML, and six linked guides covering Stockfish, offline analysis, PGN review, importing Lichess and Chess.com games, and Leela Chess Zero installation and analysis. No fabricated reviews, ratings, rankings, or keyword stuffing are included.
 
 The linked `/about/` page gives readers and search systems a source-backed reference for features, supported platforms, use cases, and limitations. `/product.json` exports exactly the SoftwareApplication metadata embedded on the homepage. Keep the visible facts, prerelease status, version, and metadata accurate together when a new release ships.
 
@@ -65,8 +65,8 @@ For visibility reports, verify the URL-prefix property in [Google Search Console
 - `index.html`: homepage, product facts, main download links and SoftwareApplication metadata.
 - `styles.css`: responsive styling, shared with the guides.
 - `site.js`: opening-position controls.
-- `guides.mjs`: guide text and search metadata.
-- `build.mjs`: dependency-free static generation, shared guide layout, board illustrations, sitemap and URL handling.
+- `guides.mjs`: guide text and search metadata. Set `modified` to the date of each meaningful content change; it feeds the sitemap and structured data.
+- `build.mjs`: dependency-free static generation, shared guide layout, board illustrations, sitemap and URL handling. Update `homeModified` when the homepage content changes.
 - `indexnow-key.txt`: public site-ownership verification value; the build writes its matching verification file.
 - `assets/`: original rabbit favicon and 1200 × 630 PNG social preview.
 - `check.mjs`: build checks, also run in GitHub Actions.
