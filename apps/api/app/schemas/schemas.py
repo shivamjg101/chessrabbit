@@ -108,6 +108,9 @@ class GameOut(BaseModel):
     eco: str | None
     opening: str | None
     ply_count: int
+    # The PGN TimeControl tag ("180+2"): what the [%clk] readings in the
+    # movetext count down from, so the board can show how time was spent.
+    time_control: str | None = None
 
     class Config:
         from_attributes = True

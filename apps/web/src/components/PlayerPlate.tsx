@@ -9,6 +9,8 @@
  * the player whose pieces are nearest the bottom is always the lower plate.
  */
 
+import { formatClock } from "@/lib/clock";
+
 /** Both players of the game on the board, as much as we know about them. */
 export interface GamePlayers {
   white: string;
@@ -17,6 +19,8 @@ export interface GamePlayers {
   blackElo?: number | null;
   /** PGN result tag: "1-0", "0-1", "1/2-1/2", or "*" while undecided. */
   result?: string;
+  /** PGN TimeControl tag, e.g. "180+2": what the clocks in the comments started from. */
+  timeControl?: string | null;
 }
 
 /**
@@ -38,9 +42,13 @@ interface Props {
   score?: number | null;
   /** True when it is this player's turn in the position on the board. */
   toMove?: boolean;
+  /** Seconds on this player's clock in the position on the board, from the game's `[%clk]` readings. */
+  clock?: number | null;
+  /** Show the clock as short of time. */
+  clockLow?: boolean;
 }
 
-export default function PlayerPlate({ name, elo, side, score, toMove }: Props) {
+export default function PlayerPlate({ name, elo, side, score, toMove, clock, clockLow }: Props) {
   // Codepoint-aware: a name starting with an emoji or an astral character
   // would otherwise be sliced into half a surrogate pair and render as junk.
   const initial = [...name.trim()][0]?.toUpperCase() ?? "?";
@@ -74,16 +82,28 @@ export default function PlayerPlate({ name, elo, side, score, toMove }: Props) {
         <span className="shrink-0 font-mono text-[11px] text-muted">({elo})</span>
       )}
 
-      {score != null && (
-        <span
-          className={`ml-auto shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
-            score === 1 ? "bg-good/20 text-good" : "bg-ivory/[0.08] text-muted"
-          }`}
-          title={score === 1 ? "Won" : score === 0 ? "Lost" : "Drawn"}
-        >
-          {score === 1 ? "1" : score === 0 ? "0" : "½"}
-        </span>
-      )}
+      <span className="ml-auto flex shrink-0 items-center gap-1.5">
+        {clock != null && (
+          <span
+            className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${
+              clockLow ? "bg-bad/15 text-bad" : toMove ? "bg-ivory/[0.1] text-ink" : "text-muted"
+            }`}
+            title="Clock in this position"
+          >
+            {formatClock(clock)}
+          </span>
+        )}
+        {score != null && (
+          <span
+            className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
+              score === 1 ? "bg-good/20 text-good" : "bg-ivory/[0.08] text-muted"
+            }`}
+            title={score === 1 ? "Won" : score === 0 ? "Lost" : "Drawn"}
+          >
+            {score === 1 ? "1" : score === 0 ? "0" : "½"}
+          </span>
+        )}
+      </span>
     </div>
   );
 }

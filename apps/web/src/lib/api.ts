@@ -74,6 +74,8 @@ export interface Game {
   eco: string | null;
   opening: string | null;
   ply_count: number;
+  /** PGN TimeControl tag, e.g. "180+2". Absent from servers older than this field. */
+  time_control?: string | null;
 }
 
 export interface GameDetail extends Game {

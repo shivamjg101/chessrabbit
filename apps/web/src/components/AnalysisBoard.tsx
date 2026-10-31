@@ -21,12 +21,15 @@ import {
 } from "@/lib/api";
 import { CLASS_META, headline } from "@/lib/classification";
 import { bestSanAt, explainMove, formatCp, liveVerdicts, sanLine } from "@/lib/liveEval";
-import { endOfLine, lineTo, nodeAt } from "@/lib/moveTree";
+import { endOfLine, lineTo, mainlinePath, nodeAt } from "@/lib/moveTree";
+import { clockOf, clocksAt, lowClockMark, parseTimeControl } from "@/lib/clock";
+import { playMoveSound, soundFor } from "@/lib/sound";
 import { Shape } from "@/lib/shapes";
 import { BOARD_FRAME, useBoardTheme } from "@/lib/boardTheme";
 import { settleExplorerRequest } from "@/lib/explorerRequest";
 import { updateSettings, useSettings } from "@/lib/settings";
 import ReviewPanel from "@/components/ReviewPanel";
+import ClockPanel from "@/components/ClockPanel";
 import VerdictPlate from "@/components/VerdictPlate";
 import BlunderIndex from "@/components/BlunderIndex";
 import BoardShapes from "@/components/BoardShapes";
@@ -214,6 +217,17 @@ export default function AnalysisBoard({
     onPersist: editable ? study?.onPersist : undefined,
   });
   const { history, fen, cursorId, onMainline } = mt;
+
+  // One step forward along a line - a move played, or the next move stepped
+  // to - makes the sound of that move. Jumps and steps back stay quiet.
+  const soundedFrom = useRef(cursorId);
+  useEffect(() => {
+    const from = soundedFrom.current;
+    soundedFrom.current = cursorId;
+    if (from !== cursorId && mt.node.parent === from && mt.node.san) {
+      playMoveSound(soundFor(mt.node.san));
+    }
+  }, [cursorId, mt.node]);
 
   const [copied, setCopied] = useState<"done" | "failed" | null>(null);
 
@@ -763,6 +777,29 @@ export default function AnalysisBoard({
   const bottomSide = orientation;
   const sideToMove = fen.split(" ")[1] === "b" ? "black" : "white";
 
+  /**
+   * The clock readings Lichess and Chess.com leave in each move's comment,
+   * and the time control they count down from. A game without them has no
+   * clocks on the plates and no Clock section in the report.
+   */
+  const clocks = useMemo(() => mainlinePath(mt.tree).map((n) => clockOf(n.comment)), [mt.tree]);
+  const hasClocks = clocks.some((c) => c != null);
+  const timeControl = useMemo(
+    () => parseTimeControl(players?.timeControl ?? mt.headers.TimeControl),
+    [players?.timeControl, mt.headers]
+  );
+  const [, rootTurn, , , , rootMove] = (nodeAt(mt.tree, mt.tree.root)?.fen ?? "").split(" ");
+  const firstMover = rootTurn === "b" ? "black" : "white";
+  const firstMoveNumber = Number(rootMove) || 1;
+  // Off the game there is no clock: nobody played the line you are trying.
+  const plateClocks =
+    hasClocks && onMainline ? clocksAt(clocks, mt.cursorPly, timeControl, firstMover) : null;
+  const lowMark = lowClockMark(timeControl);
+  const plateClock = (side: "white" | "black") => {
+    const clock = plateClocks?.[side] ?? null;
+    return { clock, clockLow: clock != null && clock < lowMark };
+  };
+
   return (
     <div className="flex flex-col lg:h-full lg:flex-row">
       {/* ---------- Board stage: fills the workspace, top to bottom ---------- */}
@@ -805,6 +842,7 @@ export default function AnalysisBoard({
               side={topSide}
               score={seats[topSide].score}
               toMove={sideToMove === topSide}
+              {...plateClock(topSide)}
             />
 
             {/* The frame takes its size from the board it wraps, so the board
@@ -889,6 +927,7 @@ export default function AnalysisBoard({
               side={bottomSide}
               score={seats[bottomSide].score}
               toMove={sideToMove === bottomSide}
+              {...plateClock(bottomSide)}
             />
           </div>
         </div>
@@ -1039,16 +1078,30 @@ export default function AnalysisBoard({
             />
           )}
           {tab === "report" && (
-            <ReviewPanel
-              history={history}
-              annotations={[...annByPly.values()]}
-              summary={reviewSummary}
-              cursor={mt.cursorPly}
-              onSeek={mt.seekPly}
-              reviewing={reviewing}
-              onRun={runReview}
-              canRun={gameId != null}
-            />
+            <div className="space-y-4">
+              <ReviewPanel
+                history={history}
+                annotations={[...annByPly.values()]}
+                summary={reviewSummary}
+                cursor={mt.cursorPly}
+                onSeek={mt.seekPly}
+                reviewing={reviewing}
+                onRun={runReview}
+                canRun={gameId != null}
+              />
+              {hasClocks && (
+                <ClockPanel
+                  history={history}
+                  clocks={clocks}
+                  timeControl={timeControl}
+                  firstMover={firstMover}
+                  firstMoveNumber={firstMoveNumber}
+                  annotations={[...annByPly.values()]}
+                  cursor={mt.cursorPly}
+                  onSeek={mt.seekPly}
+                />
+              )}
+            </div>
           )}
           {tab === "moves" && (
             <div className="space-y-2">

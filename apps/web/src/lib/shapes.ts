@@ -56,6 +56,14 @@ const SQUARE = /^[a-h][1-8]$/;
 /** `[%cal ...]` and `[%csl ...]`, with the command name and its payload. */
 const COMMAND = /\[%(cal|csl)\s+([^\]]*)\]/g;
 
+/**
+ * Any embedded command: shapes, but also the clock (`[%clk 0:02:59]`), the
+ * elapsed time and the eval that Lichess and Chess.com write after every move.
+ * None of it is prose, and the ones that are not shapes are carried through an
+ * edit untouched - rewriting a comment must not delete the clock beside it.
+ */
+const ANY_COMMAND = /\[%\w+[^\]]*\]/g;
+
 function isSquare(s: string): boolean {
   return SQUARE.test(s);
 }
@@ -92,20 +100,22 @@ function parsePayload(kind: string, payload: string): Shape[] {
  * Split a comment into the prose a reader sees and the shapes a board draws.
  *
  * Both halves come back every time, so a caller never has to know whether the
- * comment had commands in it.
+ * comment had commands in it. `commands` holds every other command verbatim,
+ * for `joinComment` to put back.
  */
-export function splitComment(comment?: string): { text: string; shapes: Shape[] } {
-  if (!comment) return { text: "", shapes: [] };
+export function splitComment(comment?: string): { text: string; shapes: Shape[]; commands: string[] } {
+  if (!comment) return { text: "", shapes: [], commands: [] };
 
   const shapes: Shape[] = [];
   for (const m of comment.matchAll(COMMAND)) {
     shapes.push(...parsePayload(m[1], m[2]));
   }
+  const commands = (comment.match(ANY_COMMAND) ?? []).filter((c) => !/^\[%(cal|csl)\s/.test(c));
 
   // Removing the commands leaves the gaps they occupied; collapse them so a
-  // comment that was nothing but shapes comes back as empty rather than blank.
-  const text = comment.replace(COMMAND, " ").replace(/\s+/g, " ").trim();
-  return { text, shapes };
+  // comment that was nothing but commands comes back as empty rather than blank.
+  const text = comment.replace(ANY_COMMAND, " ").replace(/\s+/g, " ").trim();
+  return { text, shapes, commands };
 }
 
 /**
@@ -113,7 +123,7 @@ export function splitComment(comment?: string): { text: string; shapes: Shape[] 
  * there is nothing to store - which is what tells the tree to drop the comment
  * rather than keep an empty one that every exporter would then write out.
  */
-export function joinComment(text: string, shapes: Shape[]): string | undefined {
+export function joinComment(text: string, shapes: Shape[], commands: string[] = []): string | undefined {
   const prose = text.trim();
   const circles = shapes.filter((s) => !s.to);
   const arrows = shapes.filter((s) => s.to);
@@ -126,6 +136,7 @@ export function joinComment(text: string, shapes: Shape[]): string | undefined {
   if (arrows.length) {
     parts.push(`[%cal ${arrows.map((s) => KEY_FOR_BRUSH[s.brush] + s.from + s.to).join(",")}]`);
   }
+  parts.push(...commands);
   return parts.length ? parts.join(" ") : undefined;
 }
 

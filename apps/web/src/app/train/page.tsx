@@ -549,6 +549,7 @@ export default function TrainPage() {
                 <Link href="/train/puzzles" className="btn">Puzzles</Link>
                 <Link href="/train/intuition" className="btn">Intuition</Link>
                 <Link href="/train/clock" className="btn">Time bank</Link>
+                <Link href="/train/coordinates" className="btn">Coordinates</Link>
               </div>
             </div>
           </aside>

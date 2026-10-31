@@ -16,8 +16,25 @@ describe("reading", () => {
   });
 
   it("comes back empty for a comment that has none", () => {
-    expect(splitComment("just words")).toEqual({ text: "just words", shapes: [] });
-    expect(splitComment(undefined)).toEqual({ text: "", shapes: [] });
+    expect(splitComment("just words")).toEqual({ text: "just words", shapes: [], commands: [] });
+    expect(splitComment(undefined)).toEqual({ text: "", shapes: [], commands: [] });
+  });
+
+  // Every Chess.com game, and Lichess games exported with clocks, carry one of
+  // these on each move. They are not prose, and showing them as comments
+  // buried the move list in timestamps.
+  it("hides clock and other commands from the prose but keeps them", () => {
+    const { text, shapes, commands } = splitComment("good move [%clk 0:02:59.4] [%eval 0.25] [%cal Ge2e4]");
+    expect(text).toBe("good move");
+    expect(shapes).toEqual([{ from: "e2", to: "e4", brush: "green" }]);
+    expect(commands).toEqual(["[%clk 0:02:59.4]", "[%eval 0.25]"]);
+    expect(splitComment("[%clk 0:09:58.5]").text).toBe("");
+  });
+
+  it("puts the other commands back when a comment is rewritten", () => {
+    const { shapes, commands } = splitComment("[%clk 0:02:59.4] [%cal Ge2e4]");
+    expect(joinComment("new note", shapes, commands)).toBe("new note [%cal Ge2e4] [%clk 0:02:59.4]");
+    expect(joinComment("", [], commands)).toBe("[%clk 0:02:59.4]");
   });
 
   it("leaves no blank comment behind when the shapes were all of it", () => {

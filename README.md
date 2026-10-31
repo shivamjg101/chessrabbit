@@ -130,10 +130,12 @@ To stop the app and keep your data: `docker compose down`.
 
 - Live position analysis with selectable depth and candidate lines.
 - Full-game reviews, move annotations, accuracy and mistake training.
+- Clock report for online games: time spent per move, longest thinks and mistakes made short of time, with clocks on the player plates.
 - PGN import/export, collections, opening explorer and reference search.
 - Database tools: tournament crosstables, player dossiers, duplicate-game cleanup, position search in your own games, and a novelty finder for the first new move of a game.
 - Studies with variations, comments and board annotations.
-- Opening repertoires, spaced repetition, puzzles and opponent preparation.
+- Opening repertoires, spaced repetition, puzzles, a coordinates trainer and opponent preparation.
+- Optional move sounds for moves, captures and checks.
 - Optional Lichess/Chess.com imports and public player insights.
 
 Every feature is available to every account. Resource limits apply equally to protect the machine running the app. There are no paid plans, billing routes, subscription checks or license keys.
