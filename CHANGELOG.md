@@ -6,6 +6,9 @@ All notable changes to ChessRabbit are recorded here. The format follows [Keep a
 
 ### Added
 
+- **Clock report.** For games with clock readings (every Chess.com game, and Lichess games synced from now on), the Report tab charts the time spent on each move and lists time used, average move, longest think, when each side got short of time, and how many mistakes were made with the clock short. The player plates show each side's clock as you step through the game.
+- **Coordinates trainer** (Train → Coordinates): click the named square, as many as you can in 30 seconds, from White's or Black's side. Best scores are kept per side.
+- **Move sounds** for moves, captures and checks on the analysis board and in Play vs computer, synthesised in the browser and switchable under Settings → Board.
 - Database tools: tournament crosstables, player dossiers, duplicate-game cleanup, position search in your own games, and a novelty finder for the first new move of a game.
 - Endgame **Tablebase** tab for positions with seven pieces or fewer, using local Syzygy files or the Lichess tablebase service.
 - Interactive study lessons, "guess the move" chapters, chapter import, board editor, diagram export and study settings.
@@ -21,6 +24,7 @@ All notable changes to ChessRabbit are recorded here. The format follows [Keep a
 ### Fixed
 
 - A computer move requested during a game review no longer times out.
+- Clock and other `[%…]` commands in imported games no longer appear as comments in the move list, and editing such a comment keeps the clock.
 
 ## [desktop-0.1.2] - 2026-10-03
 

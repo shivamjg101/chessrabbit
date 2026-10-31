@@ -20,6 +20,7 @@ import { BOARD_FRAME, useBoardTheme } from "@/lib/boardTheme";
 import { useSquareSize } from "@/hooks/useSquareSize";
 import { api } from "@/lib/api";
 import { useClickToMove } from "@/hooks/useClickToMove";
+import { playMoveSound, soundFor } from "@/lib/sound";
 import PlayerPlate, { scoreOf } from "@/components/PlayerPlate";
 
 type Status = "setup" | "playing" | "over";
@@ -142,6 +143,14 @@ export default function PlayPage() {
     const el = moveListRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [moves.length]);
+
+  // Your move and the engine's reply each make their sound; a take-back or a
+  // new game, which shorten the list, stay quiet.
+  const soundedMoves = useRef(0);
+  useEffect(() => {
+    if (moves.length > soundedMoves.current) playMoveSound(soundFor(moves[moves.length - 1]));
+    soundedMoves.current = moves.length;
+  }, [moves]);
 
   const sync = useCallback(() => {
     setFen(game.current.fen());

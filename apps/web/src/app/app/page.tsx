@@ -149,6 +149,7 @@ function AppWorkspace() {
         whiteElo: g.white_elo,
         blackElo: g.black_elo,
         result: g.result,
+        timeControl: g.time_control,
       });
       setDrawerOpen(false);
     } catch {

@@ -131,6 +131,10 @@ async def _fetch_lichess(
         # lands in Insights as "Unknown opening" - the openings charts were
         # collapsing a whole account into one row.
         "opening": "true",
+        # The [%clk] reading after every move. Chess.com always sends it;
+        # Lichess only on request, and without it the board's Clock report
+        # had nothing to show for any game synced from there.
+        "clocks": "true",
         "perfType": _LICHESS_PERFS,
     }
     if since is not None:

@@ -351,8 +351,8 @@ export function useMoveTree(
     setTree((t) => {
       const n = nodeAt(t, id);
       if (!n) return t;
-      const { shapes } = splitComment(n.comment);
-      return annotate(t, id, { comment: joinComment(text, shapes) });
+      const { shapes, commands } = splitComment(n.comment);
+      return annotate(t, id, { comment: joinComment(text, shapes, commands) });
     });
   }, []);
 
@@ -360,8 +360,8 @@ export function useMoveTree(
     setTree((t) => {
       const n = nodeAt(t, id);
       if (!n) return t;
-      const { text } = splitComment(n.comment);
-      return annotate(t, id, { comment: joinComment(text, shapes) });
+      const { text, commands } = splitComment(n.comment);
+      return annotate(t, id, { comment: joinComment(text, shapes, commands) });
     });
   }, []);
 

@@ -130,3 +130,21 @@ class TestPerformance:
 
     def test_no_rated_opponents_has_no_performance(self):
         assert performance([], 0.0) is None
+
+
+ONLINE_GAME = """[Event "Live Chess"]
+[White "A"]
+[Black "B"]
+[Result "1-0"]
+[TimeControl "180+2"]
+
+1. e4 {[%clk 0:03:01.4]} 1... e5 {[%clk 0:02:59.8]} 2. Nf3 {nice [%clk 0:02:55]} 1-0
+"""
+
+
+def test_clock_readings_and_time_control_survive_import():
+    """The board's Clock report reads [%clk] from the stored movetext."""
+    (game,) = parse_pgn(ONLINE_GAME)
+    assert game["time_control"] == "180+2"
+    assert "[%clk 0:03:01.4]" in game["movetext"]
+    assert "nice [%clk 0:02:55]" in game["movetext"]

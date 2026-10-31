@@ -88,14 +88,15 @@ async def list_games(
 ):
     # The list only ever renders GameOut. Without this the query also drags
     # back every game's full movetext - by far the widest column in the table -
-    # which is then discarded during serialisation.
+    # which is then discarded during serialisation. Every GameOut field must be
+    # listed: an unloaded one is a lazy load, which async sessions refuse.
     stmt = (
         select(Game)
         .options(
             load_only(
                 Game.id, Game.white, Game.black, Game.white_elo, Game.black_elo,
                 Game.result, Game.event, Game.played_on, Game.eco, Game.opening,
-                Game.ply_count,
+                Game.ply_count, Game.time_control,
             )
         )
         .where(Game.owner_id == user.id)

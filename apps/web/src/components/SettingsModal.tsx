@@ -284,6 +284,12 @@ export default function SettingsModal({ me, onClose }: Props) {
                   checked={s.highlightLastMove}
                   onChange={(highlightLastMove) => updateSettings({ highlightLastMove })}
                 />
+                <Toggle
+                  label="Move sounds"
+                  hint="A soft knock for each move, a sharper one for captures and a tone for checks."
+                  checked={s.moveSounds}
+                  onChange={(moveSounds) => updateSettings({ moveSounds })}
+                />
               </section>
             </div>
           )}

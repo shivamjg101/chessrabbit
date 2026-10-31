@@ -28,6 +28,8 @@ export interface Settings {
   highlightLastMove: boolean;
   /** Piece slide duration in ms; 0 disables animation. */
   animationMs: number;
+  /** A knock for each move played or stepped to, louder for captures. */
+  moveSounds: boolean;
 
   boardTheme: string;
 }
@@ -49,6 +51,7 @@ export const DEFAULTS: Settings = {
   showCoordinates: true,
   highlightLastMove: true,
   animationMs: 200,
+  moveSounds: true,
   // Must match BOARD_THEMES[0].id in lib/boardTheme.ts, which is where the
   // colours live. Not imported from there: boardTheme.ts imports useSettings
   // from this file, so reading it back would be a cycle. When the default
