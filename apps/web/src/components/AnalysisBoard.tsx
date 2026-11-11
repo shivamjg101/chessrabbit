@@ -24,6 +24,7 @@ import { bestSanAt, explainMove, formatCp, liveVerdicts, sanLine } from "@/lib/l
 import { endOfLine, lineTo, mainlinePath, nodeAt } from "@/lib/moveTree";
 import { clockOf, clocksAt, lowClockMark, parseTimeControl } from "@/lib/clock";
 import { playMoveSound, soundFor } from "@/lib/sound";
+import { typedMoveSan } from "@/lib/typedMove";
 import { Shape } from "@/lib/shapes";
 import { BOARD_FRAME, useBoardTheme } from "@/lib/boardTheme";
 import { settleExplorerRequest } from "@/lib/explorerRequest";
@@ -230,6 +231,8 @@ export default function AnalysisBoard({
   }, [cursorId, mt.node]);
 
   const [copied, setCopied] = useState<"done" | "failed" | null>(null);
+  const [typed, setTyped] = useState("");
+  const [typedBad, setTypedBad] = useState(false);
 
   const [orientation, setOrientation] = useState<"white" | "black">(
     study?.orientation ?? "white"
@@ -1139,6 +1142,36 @@ export default function AnalysisBoard({
                       : "Copy PGN"}
                 </button>
               </div>
+              {/* Keyboard entry: the same branch-off-here as a drag, for
+                  people who read a line faster than they can drag it. */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const san = typedMoveSan(fen, typed);
+                  if (!san) return setTypedBad(true);
+                  mt.playLine([san], { source: "user" });
+                  setTyped("");
+                }}
+              >
+                <input
+                  className={`input py-1 font-mono text-xs ${typedBad ? "border-bad/60" : ""}`}
+                  placeholder="Type a move: Nf3, e4, O-O, g1f3"
+                  aria-label="Type a move"
+                  aria-invalid={typedBad}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={typed}
+                  onChange={(e) => {
+                    setTyped(e.target.value);
+                    setTypedBad(false);
+                  }}
+                />
+                {typedBad && (
+                  <p role="alert" className="mt-1 text-[11px] text-bad">
+                    Not a legal move here, or two pieces can make it (try Nbd2).
+                  </p>
+                )}
+              </form>
               <MoveList
                 tree={mt.tree}
                 rows={mt.rows}

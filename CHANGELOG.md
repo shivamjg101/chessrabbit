@@ -6,6 +6,8 @@ All notable changes to ChessRabbit are recorded here. The format follows [Keep a
 
 ### Added
 
+- **Type a move** on the analysis board (Moves tab): enter SAN (`Nf3`, `nf3`, `O-O`, `e8=Q`) or UCI (`g1f3`) and press Enter to play it from the current position, like a drag would.
+- **Knight routes trainer** (Train → Knight routes): hop a knight to the gold square in exactly the fewest moves, as many routes as you can in 60 seconds. Best score is kept in this browser.
 - **Clock report.** For games with clock readings (every Chess.com game, and Lichess games synced from now on), the Report tab charts the time spent on each move and lists time used, average move, longest think, when each side got short of time, and how many mistakes were made with the clock short. The player plates show each side's clock as you step through the game.
 - **Coordinates trainer** (Train → Coordinates): click the named square, as many as you can in 30 seconds, from White's or Black's side. Best scores are kept per side.
 - **Move sounds** for moves, captures and checks on the analysis board and in Play vs computer, synthesised in the browser and switchable under Settings → Board.
