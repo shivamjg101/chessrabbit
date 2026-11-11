@@ -26,18 +26,28 @@ export function bestKey(side: DrillSide): string {
 }
 
 export function readBest(side: DrillSide): number {
+  return readScore(bestKey(side));
+}
+
+/** Remember `score` if it beats the stored best; returns the best after this round. */
+export function saveBest(side: DrillSide, score: number): number {
+  return saveScore(bestKey(side), score);
+}
+
+/** A drill's best score kept in this browser under `key`. */
+export function readScore(key: string): number {
   try {
-    return Number(window.localStorage.getItem(bestKey(side))) || 0;
+    return Number(window.localStorage.getItem(key)) || 0;
   } catch {
     return 0;
   }
 }
 
-/** Remember `score` if it beats the stored best; returns the best after this round. */
-export function saveBest(side: DrillSide, score: number): number {
-  const best = Math.max(readBest(side), score);
+/** Keep `score` under `key` if it beats what is there; returns the best after it. */
+export function saveScore(key: string, score: number): number {
+  const best = Math.max(readScore(key), score);
   try {
-    window.localStorage.setItem(bestKey(side), String(best));
+    window.localStorage.setItem(key, String(best));
   } catch {
     /* private mode: the round still counts, it just is not remembered */
   }
